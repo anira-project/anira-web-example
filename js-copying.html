@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="coi-serviceworker.min.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anira Web - JS Copying</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <div class="page-header__title">Anira Web</div>
+        <a class="back-link" href="index.html">
+          <span class="back-link__arrow">&larr;</span> All Demos
+        </a>
+      </header>
+
+      <div id="demo-description" class="demo-description"></div>
+
+      <div class="panel">
+        <div id="loading-indicator" class="loading-overlay">
+          <div class="loading-overlay__spinner"></div>
+          <span class="loading-overlay__text">Loading demo&hellip;</span>
+        </div>
+
+        <div class="panel__section">
+          <div class="btn-group">
+            <button id="audio-toggle" class="btn btn--primary" disabled>Play</button>
+            <button id="dry-wet-toggle" class="btn" disabled>Wet</button>
+          </div>
+        </div>
+
+        <div class="panel__section">
+          <div class="worker-controls">
+            <button id="remove-worker" class="btn btn--sm" disabled>&minus; Worker</button>
+            <button id="add-worker" class="btn btn--sm" disabled>+ Worker</button>
+            <div class="worker-badge">
+              Workers <span id="worker-count" class="worker-badge__count">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel source-code-panel">
+        <h2 class="source-code-panel__title">Source Code</h2>
+        <div id="source-code-container"></div>
+      </div>
+    </div>
+  </body>
+  <script type="module" src="/src/js-copying/renderDemoInfo.ts"></script>
+  <script type="module" src="/src/js-copying/index.ts"></script>
+</html>

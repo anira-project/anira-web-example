@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="coi-serviceworker.min.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anira Web</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <h1 class="page-header__title">Anira Web</h1>
+        <p class="page-header__subtitle">Real-time neural audio processing in the browser</p>
+      </header>
+
+      <section class="section">
+        <h2 class="section__title">About</h2>
+        <p>
+          <strong>anira</strong> is a real-time neural network inference
+          library for low-latency audio processing. <strong>anira-web</strong>
+          ships the same C++ library compiled to WebAssembly with a TypeScript
+          wrapper that integrates with the Web Audio API.
+        </p>
+        <p>
+          You can find the documentation for it
+          <a href="https://anira-project.github.io/anira/web-api/index.html"
+            >here</a
+          >.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">Using the demos</h2>
+        <p>Each demo page exposes the same controls:</p>
+        <ul>
+          <li>
+            <strong>Play / Pause</strong> — start or stop the audio source.
+          </li>
+          <li>
+            <strong>Dry / Wet</strong> — toggle between the unprocessed (dry)
+            audio and the model-processed (wet) signal.
+          </li>
+          <li>
+            <strong>+ Worker / &minus; Worker</strong> — spin up or tear down
+            inference workers. Each worker is a Web Worker hosting an
+            inference thread; spawn more if a single worker can&rsquo;t keep
+            up. With zero workers, you won&rsquo;t hear anything and the
+            console will log warnings.
+          </li>
+        </ul>
+        <p>
+          The source code for setting up each demo is presented below the
+          controls on the demo page.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">Demos</h2>
+        <ul class="card-list">
+          <li>
+            <a class="card-link" href="simple-gain-stereo.html">
+              <div class="card-link__name">Simple Gain Stereo</div>
+              <div class="card-link__desc">The minimal end-to-end anira-web setup — a stereo gain plugin running through the default WASM-side ONNX Runtime, and the foundation every other demo builds on.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="streaming-gain-stereo.html">
+              <div class="card-link__name">Streaming Gain Stereo</div>
+              <div class="card-link__desc">Delivers gain as a second streamable tensor for sample-accurate updates, driven by a Web Audio LFO through a custom audio worklet.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="js-callback.html">
+              <div class="card-link__name">JS Callback</div>
+              <div class="card-link__desc">The simplest way to move inference out of WASM and into JavaScript — plugs in the built-in <code>JSBackendBase</code> as a passthrough hook on the inference worker.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="onnx-runtime-web-backend.html">
+              <div class="card-link__name">ONNX Runtime Web Backend</div>
+              <div class="card-link__desc">Runs the same stereo gain model through anira-web's <code>ONNXRuntimeWebBackend</code>, swapping the WASM engine for <code>onnxruntime-web</code> on the JS side.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="js-copying.html">
+              <div class="card-link__name">JS Copying</div>
+              <div class="card-link__desc">A user-written custom inference backend — subclasses <code>JSBackendBase</code> and ships its own custom inference worker, providing the template for wrapping any JS-side runtime.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="pre-post-processors.html">
+              <div class="card-link__name">PrePostProcessors</div>
+              <div class="card-link__desc">Routes pre- and post-processing through JS via <code>JSPrePostProcessor</code>, demonstrated by clamping the gain slider to <code>[0, 1]</code> from a JavaScript callback firing on every block.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="steerable-nafx.html">
+              <div class="card-link__name">Steerable-NAFX (CNN)</div>
+              <div class="card-link__desc">A CNN-based neural guitar amp whose <code>JSPrePostProcessor</code> assembles each block's input as a sliding window prepended with 132 samples of past context for the convolutions to look back at.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="guitar-lstm.html">
+              <div class="card-link__name">GuitarLSTM (HybridNN)</div>
+              <div class="card-link__desc">A hybrid LSTM/dense guitar amp whose <code>JSPrePostProcessor</code> packs each block into a batched <code>[BUFFER_SIZE, 1, 150]</code> tensor of overlapping 150-sample context windows run in parallel.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="scyclone-funk-drums.html">
+              <div class="card-link__name">Scyclone (funk_drums)</div>
+              <div class="card-link__desc">Real-time RAVE-based timbre transfer from Scyclone — re-synthesizes incoming audio in the character of funk drums, using the default <code>PrePostProcessor</code> with matching <code>[1, 1, 16384]</code> input and output tensors.</div>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">Third-party licenses</h2>
+        <p>
+          This site bundles third-party open-source software. See
+          <a href="licenses.html">licenses</a> for the full attribution list.
+        </p>
+      </section>
+    </div>
+  </body>
+</html>
