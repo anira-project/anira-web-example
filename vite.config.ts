@@ -14,6 +14,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
+          // Really just for setting CORS cross origin isolation headers on github pages
           src: 'node_modules/coi-serviceworker/coi-serviceworker.min.js',
           dest: '.',
         },
