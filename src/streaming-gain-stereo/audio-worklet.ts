@@ -1,7 +1,7 @@
 import {
   AniraAudioWorkletBase,
   type AniraWorkletState,
-} from 'anira-web/workers/worklet-base'
+} from '@anira-project/anira/workers/worklet-base'
 
 const AUDIO_CHANNELS = 2
 const GAIN_CHANNELS = 1

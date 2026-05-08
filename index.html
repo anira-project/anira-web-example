@@ -15,46 +15,7 @@
         <p class="page-header__subtitle">Real-time neural audio processing in the browser</p>
       </header>
 
-      <section class="section">
-        <h2 class="section__title">About</h2>
-        <p>
-          <strong>anira</strong> is a real-time neural network inference
-          library for low-latency audio processing. <strong>anira-web</strong>
-          ships the same C++ library compiled to WebAssembly with a TypeScript
-          wrapper that integrates with the Web Audio API.
-        </p>
-        <p>
-          You can find the documentation for it
-          <a href="https://anira-project.github.io/anira/web-api/index.html"
-            >here</a
-          >.
-        </p>
-      </section>
-
-      <section class="section">
-        <h2 class="section__title">Using the demos</h2>
-        <p>Each demo page exposes the same controls:</p>
-        <ul>
-          <li>
-            <strong>Play / Pause</strong> — start or stop the audio source.
-          </li>
-          <li>
-            <strong>Dry / Wet</strong> — toggle between the unprocessed (dry)
-            audio and the model-processed (wet) signal.
-          </li>
-          <li>
-            <strong>+ Worker / &minus; Worker</strong> — spin up or tear down
-            inference workers. Each worker is a Web Worker hosting an
-            inference thread; spawn more if a single worker can&rsquo;t keep
-            up. With zero workers, you won&rsquo;t hear anything and the
-            console will log warnings.
-          </li>
-        </ul>
-        <p>
-          The source code for setting up each demo is presented below the
-          controls on the demo page.
-        </p>
-      </section>
+      <div id="page-description" class="demo-description"></div>
 
       <section class="section">
         <h2 class="section__title">Demos</h2>
@@ -62,7 +23,7 @@
           <li>
             <a class="card-link" href="simple-gain-stereo.html">
               <div class="card-link__name">Simple Gain Stereo</div>
-              <div class="card-link__desc">The minimal end-to-end anira-web setup — a stereo gain plugin running through the default WASM-side ONNX Runtime, and the foundation every other demo builds on.</div>
+              <div class="card-link__desc">The minimal end-to-end Anira Web setup — a stereo gain plugin running through the default WASM-side ONNX Runtime, and the foundation every other demo builds on.</div>
             </a>
           </li>
           <li>
@@ -80,7 +41,7 @@
           <li>
             <a class="card-link" href="onnx-runtime-web-backend.html">
               <div class="card-link__name">ONNX Runtime Web Backend</div>
-              <div class="card-link__desc">Runs the same stereo gain model through anira-web's <code>ONNXRuntimeWebBackend</code>, swapping the WASM engine for <code>onnxruntime-web</code> on the JS side.</div>
+              <div class="card-link__desc">Runs the same stereo gain model through Anira Web's <code>ONNXRuntimeWebBackend</code>, swapping the WASM engine for <code>onnxruntime-web</code> on the JS side.</div>
             </a>
           </li>
           <li>
@@ -109,8 +70,8 @@
           </li>
           <li>
             <a class="card-link" href="scyclone-funk-drums.html">
-              <div class="card-link__name">Scyclone (funk_drums)</div>
-              <div class="card-link__desc">Real-time RAVE-based timbre transfer from Scyclone — re-synthesizes incoming audio in the character of funk drums, using the default <code>PrePostProcessor</code> with matching <code>[1, 1, 16384]</code> input and output tensors.</div>
+              <div class="card-link__name">RAVE: Funk &amp; Djembe</div>
+              <div class="card-link__desc">Two RAVE neural synthesis models — funk drums and djembe — running in parallel. A fade slider blends between them; a mix slider sets the dry/wet balance with latency-aligned bypass.</div>
             </a>
           </li>
         </ul>
@@ -124,5 +85,6 @@
         </p>
       </section>
     </div>
+    <script type="module" src="/src/index/index.ts"></script>
   </body>
 </html>

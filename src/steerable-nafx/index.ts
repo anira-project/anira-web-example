@@ -1,4 +1,4 @@
-import { AniraWeb } from 'anira-web'
+import { AniraWeb } from '@anira-project/anira'
 import { setupDemoUI } from '../utils/setupDemoUI'
 import workletUrl from './audio-worklet.ts?worker&url'
 

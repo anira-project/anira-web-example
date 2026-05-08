@@ -1,13 +1,13 @@
 import {
   AniraAudioWorkletBase,
   type AniraWorkletState,
-} from 'anira-web/workers/worklet-base'
+} from '@anira-project/anira/workers/worklet-base'
 import {
   JSPrePostProcessor,
   type PossiblePointer,
   type VectorBufferF,
   type VectorRingBuffer,
-} from 'anira-web'
+} from '@anira-project/anira'
 
 /**
  * Custom JSPrePostProcessor that clamps the gain to [0, 1].

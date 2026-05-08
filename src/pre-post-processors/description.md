@@ -4,7 +4,7 @@ Anira's default `PrePostProcessor` runs entirely in C++/WASM. When
 your model needs JavaScript-side preparation between blocks —
 windowing, normalisation, parameter clamping, custom multi-tensor
 packing —
-[`JSPrePostProcessor`]($DOCS_URL/web-api/reference/class/JSPrePostProcessor.html)
+[`JSPrePostProcessor`](https://anira-project.github.io/anira/web-api/reference/class/JSPrePostProcessor.html)
 routes the pre- and post-processing phases through JS callbacks
 instead.
 
@@ -19,7 +19,7 @@ real-time callback runs), so the construction is split: the main
 thread allocates a `JSPrePostProcessor`, the worklet reconstructs it
 as the subclass via `createFromPointer` and registers it with
 `aniraWeb.registerPrePostProcessor`. See
-[Custom Pre- and Post-Processing]($DOCS_URL/web-api/custom_pre_post_processing.html)
+[Custom Pre- and Post-Processing](https://anira-project.github.io/anira/web-api/custom_pre_post_processing.html)
 for the full pattern.
 
 The [steerable-nafx](/steerable-nafx.html) and

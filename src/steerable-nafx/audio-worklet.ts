@@ -4,11 +4,11 @@ import {
   VectorRingBuffer,
   type PossiblePointer,
   type VectorBufferF,
-} from 'anira-web'
+} from '@anira-project/anira'
 import {
   AniraAudioWorkletBase,
   type AniraWorkletState,
-} from 'anira-web/workers/worklet-base'
+} from '@anira-project/anira/workers/worklet-base'
 
 const BUFFER_SIZE = 1024
 const CNN_RECEPTIVE_FIELD = 132

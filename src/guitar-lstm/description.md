@@ -15,4 +15,4 @@ input tensor.
 
 The wider topic — when to use a `JSPrePostProcessor` and the full
 two-thread setup — is covered in
-[Custom Pre- and Post-Processing]($DOCS_URL/web-api/custom_pre_post_processing.html).
+[Custom Pre- and Post-Processing](https://anira-project.github.io/anira/web-api/custom_pre_post_processing.html).

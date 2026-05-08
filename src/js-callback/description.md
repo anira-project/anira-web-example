@@ -3,7 +3,7 @@
 Inference doesn't have to run inside anira's WASM module — it can
 just as well run in JavaScript on the inference worker thread. This
 demo shows the simplest version of that: it plugs in
-[`JSBackendBase`]($DOCS_URL/web-api/reference/class/JSBackendBase.html)
+[`JSBackendBase`](https://anira-project.github.io/anira/web-api/reference/class/JSBackendBase.html)
 as the inference backend, which fires a JS hook for every block and
 performs a passthrough copy on the WASM side. No model is actually
 loaded — the `.onnx` file is registered in `ModelData` for the
@@ -20,4 +20,4 @@ shows the same pattern using `onnxruntime-web` to actually run a
 model.
 
 Full pattern in
-[Custom Inference Backends]($DOCS_URL/web-api/custom_inference_backends.html).
+[Custom Inference Backends](https://anira-project.github.io/anira/web-api/custom_inference_backends.html).

@@ -1,4 +1,4 @@
-import { AniraWeb } from 'anira-web'
+import { AniraWeb } from '@anira-project/anira'
 import { JSCopyBackend } from '../misc/JSCopyBackend'
 import { setupDemoUI } from '../utils/setupDemoUI'
 
@@ -10,7 +10,12 @@ await aniraWeb.spinUpInferenceWorker(customInferenceWorkerUrl)
 const audio = new Audio('vibes.mp3')
 const audioContext = new AudioContext({ sampleRate: 48000 })
 
-const { removeLoadingIndicator, connectAudioGraph } = await setupDemoUI(aniraWeb, audio, audioContext, customInferenceWorkerUrl)
+const { removeLoadingIndicator, connectAudioGraph } = await setupDemoUI(
+  aniraWeb,
+  audio,
+  audioContext,
+  customInferenceWorkerUrl
+)
 
 // -------------------
 // ------ WASM ------

@@ -1,14 +1,14 @@
 import {
   AniraAudioWorkletBase,
   type AniraWorkletState,
-} from 'anira-web/workers/worklet-base'
+} from '@anira-project/anira/workers/worklet-base'
 import {
   JSPrePostProcessor,
   resolvePtr,
   type PossiblePointer,
   type VectorBufferF,
   type VectorRingBuffer,
-} from 'anira-web'
+} from '@anira-project/anira'
 
 const BUFFER_SIZE = 2048
 const CONTEXT_SAMPLES = 150

@@ -4,10 +4,10 @@ A user-written custom inference backend. Where
 [js-callback](/js-callback.html) just plugs in the built-in
 `JSBackendBase` directly, this demo subclasses it to ship the full
 recipe documented in
-[Custom Inference Backends]($DOCS_URL/web-api/custom_inference_backends.html):
+[Custom Inference Backends](https://anira-project.github.io/anira/web-api/custom_inference_backends.html):
 
 - A `JSCopyBackend` class extending
-  [`JSBackendBase`]($DOCS_URL/web-api/reference/class/JSBackendBase.html),
+  [`JSBackendBase`](https://anira-project.github.io/anira/web-api/reference/class/JSBackendBase.html),
   with a `process` override that walks the input/output tensor
   vectors and copies samples through the WASM heap.
 - A one-line custom inference worker file (`customInferenceWorker.ts`)

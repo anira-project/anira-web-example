@@ -1,4 +1,4 @@
-import { AniraWeb } from 'anira-web'
+import { AniraWeb } from '@anira-project/anira'
 import { setupDemoUI } from '../utils/setupDemoUI'
 import workletUrl from './audio-worklet.ts?worker&url'
 
@@ -8,7 +8,11 @@ await aniraWeb.spinUpInferenceWorker()
 const audio = new Audio('guitar.mp3')
 const audioContext = new AudioContext({ sampleRate: 44100 })
 
-const { removeLoadingIndicator, connectAudioGraph } = await setupDemoUI(aniraWeb, audio, audioContext)
+const { removeLoadingIndicator, connectAudioGraph } = await setupDemoUI(
+  aniraWeb,
+  audio,
+  audioContext
+)
 
 // -------------------
 // ------ WASM ------

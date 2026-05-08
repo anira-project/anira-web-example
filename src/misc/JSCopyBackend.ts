@@ -1,4 +1,4 @@
-import { JSBackendBase, BufferF, VectorBufferF } from 'anira-web'
+import { JSBackendBase, BufferF, VectorBufferF } from '@anira-project/anira'
 
 // This backend demonstrates how to implement a custom JS-based inference backend.
 // The process method is called from C++. In this case, it simply copies input to output in JS.

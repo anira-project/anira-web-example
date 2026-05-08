@@ -13,7 +13,7 @@ machinery:
   and calls `processMulti` with a `float***` pointer structure
   covering both tensors. The base class's `buildMultiTensorPointers`
   helper does the heavy lifting — see
-  [Custom Audio Worklets]($DOCS_URL/web-api/custom_audio_worklets.html).
+  [Custom Audio Worklets](https://anira-project.github.io/anira/web-api/custom_audio_worklets.html).
 - A Web Audio `AudioParam` declared via `parameterDescriptors`. The
   worklet copies the parameter's per-sample values into the gain
   tensor on every block. To make the sample-accurate behaviour

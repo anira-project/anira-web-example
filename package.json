@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "anira-web": "file:anira-web-0.0.1.tgz",
+    "@anira-project/anira": "^0.0.1-alpha.0",
     "coi-serviceworker": "^0.1.7",
     "highlight.js": "^11.11.1",
     "highlightjs-line-numbers.js": "^2.9.1",

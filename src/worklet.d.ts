@@ -13,6 +13,8 @@ declare var AudioWorkletProcessor: {
   new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor
 }
 
+declare const sampleRate: number
+
 declare function registerProcessor(
   name: string,
   processorCtor: (new (options?: AudioWorkletNodeOptions) => AudioWorkletProcessor) & {
