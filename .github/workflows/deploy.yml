@@ -25,10 +25,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      # Use the npm version pinned via "packageManager" in package.json
-      # so contributors and CI produce identical lockfile shapes.
-      - name: enable corepack
-        run: corepack enable
+      - name: pin npm version
+        run: npm install -g npm@11.6.2
 
       - run: npm ci
 
