@@ -35,7 +35,7 @@ export default defineConfig({
         'pre-post-processors': './pre-post-processors.html',
         'steerable-nafx': './steerable-nafx.html',
         'guitar-lstm': './guitar-lstm.html',
-        'scyclone-funk-drums': './scyclone-funk-drums.html',
+        scyclone: './scyclone.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },
