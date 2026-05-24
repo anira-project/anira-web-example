@@ -18,7 +18,7 @@ The override has to live on the **audio worklet thread** (where the
 real-time callback runs), so the construction is split: the main
 thread allocates a `JSPrePostProcessor`, the worklet reconstructs it
 as the subclass via `createFromPointer` and registers it with
-`aniraWeb.registerPrePostProcessor`. See
+`this.prePostRegistry.set(prePostProcessorPtr, ppProcessor)`. See
 [Custom Pre- and Post-Processing](https://anira-project.github.io/anira/web-api/custom_pre_post_processing.html)
 for the full pattern.
 

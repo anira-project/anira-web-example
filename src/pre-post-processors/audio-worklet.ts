@@ -36,8 +36,7 @@ class PrePostProcessorWorklet extends AniraAudioWorkletBase {
       aniraWeb.getWasmInstance(),
       prePostProcessorPtr
     )
-
-    aniraWeb.registerPrePostProcessor(ppProcessor)
+    this.prePostRegistry.set(prePostProcessorPtr, ppProcessor)
   }
 }
 

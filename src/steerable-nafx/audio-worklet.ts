@@ -52,7 +52,7 @@ class SteerableNafxWorklet extends AniraAudioWorkletBase {
       prePostProcessorPtr
     )
 
-    aniraWeb.registerPrePostProcessor(ppProcessor)
+    this.prePostRegistry.set(prePostProcessorPtr, ppProcessor)
   }
 }
 

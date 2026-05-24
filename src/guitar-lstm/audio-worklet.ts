@@ -55,7 +55,7 @@ class GuitarLstmWorklet extends AniraAudioWorkletBase {
       prePostProcessorPtr
     )
 
-    aniraWeb.registerPrePostProcessor(ppProcessor)
+    this.prePostRegistry.set(prePostProcessorPtr, ppProcessor)
   }
 }
 
