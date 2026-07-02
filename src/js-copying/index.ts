@@ -1,8 +1,13 @@
 import { AniraWeb } from '@anira-project/anira'
 import { JSCopyBackend } from '../misc/JSCopyBackend'
 import { setupDemoUI } from '../utils/setupDemoUI'
+// `?worker&url` makes Vite bundle/transpile this into a real JS worker chunk and
+// hand back its hashed URL. Without it, the raw `./customInferenceWorker.ts` is
+// copied verbatim and served as `video/mp2t` on GitHub Pages, so `new Worker()`
+// (behind the COI service worker) fails to load it.
+import customInferenceWorkerHref from './customInferenceWorker.ts?worker&url'
 
-const customInferenceWorkerUrl = new URL('./customInferenceWorker.ts', import.meta.url)
+const customInferenceWorkerUrl = new URL(customInferenceWorkerHref, import.meta.url)
 
 const aniraWeb = await AniraWeb.create()
 await aniraWeb.spinUpInferenceWorker(customInferenceWorkerUrl)
