@@ -32,17 +32,20 @@ class HybridNNPrePostProcessor extends JSPrePostProcessor {
     )
     const buffer0 = this.wasmInstance._vector_buffer_f_get(resolvePtr(buffers), 0)
 
-    for (let batch = 0; batch < BUFFER_SIZE; batch++) {
-      const offset = batch * CONTEXT_SAMPLES
-      this.wasmInstance._prepostprocessor_pop_samples_from_buffer_window_offset(
-        this.getPointer(),
-        ringBuffer0,
-        buffer0,
-        NUM_OUTPUT_SAMPLES,
-        CONTEXT_SAMPLES - NUM_OUTPUT_SAMPLES,
-        offset
-      )
-    }
+    // One native call runs the whole per-batch windowing loop in C++, striding
+    // the output offset by CONTEXT_SAMPLES each batch. This replaces the former
+    // JS loop that crossed the JS↔WASM boundary BUFFER_SIZE times per block —
+    // that per-element overhead ran on the audio render thread and blew the
+    // render-quantum budget for large batches.
+    this.wasmInstance._prepostprocessor_pop_samples_from_buffer_batched(
+      this.getPointer(),
+      ringBuffer0,
+      buffer0,
+      NUM_OUTPUT_SAMPLES,
+      CONTEXT_SAMPLES - NUM_OUTPUT_SAMPLES,
+      0,
+      BUFFER_SIZE
+    )
   }
 }
 
