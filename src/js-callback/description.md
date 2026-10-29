@@ -6,8 +6,9 @@ shows the simplest version of that: a **JavaScript engine** whose
 `process` anira calls from the Worker's C loop for every inference.
 It passes its inputs through, one native copy of the shared memory
 per tensor (`copyWithin`). No model is loaded: the model config's
-entry names the engine and no file, and the pipeline registers the
-engine with `ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL`.
+entry names the engine and no `path`, and the pipeline registers the
+engine with `ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL`, which makes an entry
+without a model file legal.
 
 So what you hear is the unmodified input, the handler's latency
 later. The point of the demo is the wire-up: an engine is defined

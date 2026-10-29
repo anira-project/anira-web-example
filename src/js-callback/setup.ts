@@ -43,13 +43,13 @@ export async function createJsCallback(
   //    imports the worker module, where the engine is defined.
   const context = Context.create(anira, { threads: 0, workerModule })
 
-  // 3. The configs: the model entry names the engine (and a path, which an entry requires and
-  //    nothing opens: fetchModel attaches no file); the contract is Simple Gain Stereo's.
+  // 3. The configs: the model entry names the engine and no model file, legal for an engine
+  //    that declares ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL (step 4); the contract is Simple Gain
+  //    Stereo's.
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const model = await ModelConfig.fromUrl(
     anira,
-    new URL('passthrough-stereo.model.json', site),
-    { fetchModel: () => false }
+    new URL('passthrough-stereo.model.json', site)
   )
   const contract = (
     await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))

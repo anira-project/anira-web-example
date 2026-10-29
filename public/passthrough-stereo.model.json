@@ -1,5 +1,5 @@
 {
-  "models": [{ "engine": "org.anira-web-example.passthrough", "path": "no-model-file" }],
+  "models": [{ "engine": "org.anira-web-example.passthrough" }],
   "inputs": [
     {
       "name": "audio_in",

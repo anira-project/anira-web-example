@@ -1,5 +1,5 @@
 {
-  "models": [{ "engine": "org.anira-web-example.js-copy", "path": "no-model-file" }],
+  "models": [{ "engine": "org.anira-web-example.js-copy" }],
   "inputs": [
     {
       "name": "audio_in",
