@@ -1,40 +1,73 @@
-# Anira Web Demo
+# Anira Web Demo — `v3` branch
 
-A small collection of in-browser demos for [anira](https://github.com/anira-project/anira) — a real-time neural network inference library for low-latency audio processing. The demos use `@anira-project/anira`, which ships the C++ library compiled to WebAssembly with a TypeScript wrapper that integrates with the Web Audio API.
+A small collection of in-browser demos for [anira](https://github.com/anira-project/anira) — a real-time neural network inference library for low-latency audio processing. This branch runs them on **anira 3** (`@anira-project/anira` 3.0.0-alpha.2, not yet on npm): the C++ library compiled to WebAssembly, whose inference threads are Wasm Workers and whose audio path is a Wasm Audio Worklet node with a C render callback, under a typed TypeScript layer over the C ABI. The model and contract files are the same JSON a native anira host loads (`public/*.model.json`, `public/*.contract.json`).
+
+`main` stays on the 2.2.1 release from npm and keeps deploying to GitHub Pages; this branch has no deployment and no CI until 3.0.0-alpha.2 is published.
+
+## Building against a local anira checkout
+
+The dependency is `"@anira-project/anira": "file:../anira/web"`: an anira checkout beside this one, whose package npm links. Until anira PR #213 (the lean web runtime) is merged, check out its branch `feat/v3-web-ts`.
+
+```bash
+# next to this repository
+git clone https://github.com/anira-project/anira.git ../anira
+cd ../anira
+git checkout feat/v3-web-ts
+
+# the WASM module (emsdk 4.0.23; emcc --emit-tsd needs tsc on the PATH)
+export EMSDK=/path/to/emsdk-4.0.23
+cmake --preset wasm-release
+cmake --build --preset wasm-release
+
+# the TypeScript package (web/dist)
+cd web
+npm ci
+npm run build          # npm run dev rebuilds on changes
+
+# this site
+cd ../../anira-web-example
+npm install
+npm run dev            # or: npm run build && npm run preview
+```
+
+A rebuild of the package (`npm run build` in `anira/web`) reaches the site without a re-install. The dev server and `vite preview` send `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, which the module's shared `WebAssembly.Memory` needs (`crossOriginIsolated`); on GitHub Pages [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker) stands in for the headers. The full anira build documentation is [Installation / Building](https://anira-project.github.io/anira/web-api/installation_building.html).
+
+## Tests
+
+```bash
+npx playwright install chromium firefox    # once (or point PLAYWRIGHT_BROWSERS_PATH at installed ones)
+npm test                                   # = node test/run.mjs all both
+node test/run.mjs chromium build steerable-nafx,steerable-nafx.html   # a subset
+```
+
+`test/run.mjs` builds the site with the check page `test/check.html`, serves it with COOP/COEP and opens, in headless Chromium and Firefox, built and under the dev server:
+
+- every **check** (`test/check.html?check=<demo>`): the demo's own chain (its `setup.ts`) rendered through an `OfflineAudioContext` and its numbers checked — the gain demos against `input × gain`, the passthrough engines against the input, Steerable-NAFX and GuitarLSTM against the same model run over the whole signal by `onnxruntime-web` on the page, RAVE (which samples noise) for finite, latency-aligned model output;
+- every **page**: it gets ready, plays after a click (the live output measured on an `AnalyserNode` tap: not silent, silent with the gain at 0), and `+ / − Worker` count up and down, with no console error. Headless Firefox here starts no `AudioContext` (no sound server), so it skips the playing steps.
+
+What a person checks by ear: each page in Chrome and Firefox, against the 2.x site.
 
 ## Demos
 
-- **Simple Gain Stereo** — gain effect on stereo audio with a WASM ONNX backend
-- **Streaming Gain Stereo** — same effect with real-time streaming
-- **JS Callback** — JavaScript callback as the inference backend
-- **ONNX Runtime Web Backend** — inference via ONNX Runtime Web
-- **JS Copying** — pass-through using the JS copy backend
-- **PrePostProcessors** — custom JS pre/post-processing in the inference pipeline
-- **Steerable-NAFX (CNN)** — guitar amp sim with sliding-window context
-- **GuitarLSTM (HybridNN)** — guitar amp sim with batched LSTM context
-- **Scyclone (funk_drums)** — RAVE-based timbre transfer into a funk drums corpus
+Each demo's anira chain is its `setup.ts` (on any `BaseAudioContext`), the page wiring its `index.ts`; the page's source viewer shows both and the JSON files.
 
-## Local development
+- **Simple Gain Stereo** — the stereo gain model on the module's built-in ONNX Runtime engine, from `simple-gain-stereo.model.json` and its contract; the gain is a Static input, an AudioParam of the handler's audio node.
+- **Streaming Gain Stereo** — the gain as a second Streamed input, a value per sample, driven by a Web Audio LFO into the audio node's second input (the node has one input and one output per Streamed slot).
+- **JS Callback** — a JavaScript engine (`defineEngine` in the context's worker module) that passes its inputs through, no model.
+- **ONNX Runtime Web Backend** — the stereo gain model on the package's ONNX Runtime Web engine, defined in the worker module and initialised in every inference Worker.
+- **JS Copying** — a class-based JavaScript engine (`src/misc/JSCopyEngine.ts`) copying sample by sample: the template for wrapping another runtime.
+- **PrePostProcessors** — a JavaScript stage in the audio worklet that clamps the gain to 1.0 in `pre_process`.
+- **Steerable-NAFX (CNN)** — a CNN amp model whose receptive field is the model config's declared window and `overlap` (132): no stage, no worklet module.
+- **GuitarLSTM (HybridNN)** — an LSTM amp model on a batch of 2048 overlapping 150-sample windows: the config declares the hop and the history, a JavaScript stage unfolds the batch with one `anira_ring_pop_windows` call.
+- **RAVE: Funk & Djembe** — two RAVE models, two handlers on one context, two inference threads, with a latency-aligned dry path.
 
-```bash
-npm install
-npm run dev
-```
+The `+ / − Worker` buttons start and stop inference threads: each context is created without a pool (`threads: 0`) and the page runs its own `anira_inference_thread_*` threads (`src/utils/inferenceThreads.ts`), because a pool's size is fixed when it is created.
 
-The dev server sets `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` so `SharedArrayBuffer` and threaded WASM work out of the box.
+## What changed from the 2.x demos
 
-## Build
+Every demo is ported; none is removed. The 2.x custom audio worklets, `JSPrePostProcessor` subclasses, `JSBackendBase` subclasses and custom inference workers are gone: engines live in the context's worker module, stages in a worklet module, windows in the model config. Removed files: the two unused Scyclone worklets (`grain-delay-worklet.ts`, `transient-splitter-worklet.ts`), which the 2.x demo did not load either. `src/misc/JSCopyBackend.ts` is now `src/misc/JSCopyEngine.ts`.
 
-```bash
-npm run build
-npm run preview
-```
-
-## Deployment
-
-The site is deployed to GitHub Pages via `.github/workflows/deploy.yml` on every push to `main`.
-
-GitHub Pages cannot set custom HTTP headers, so cross-origin isolation (required for `SharedArrayBuffer`) is established client-side via [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker). It's loaded as the first script in every HTML entry; on first visit it registers a service worker and reloads once, after which `crossOriginIsolated === true`.
+Every contract's block range runs from the render quantum to `renderBurstFrames(audioContext)`: a live context renders a device callback as a burst of quanta with no time between them, and a handler prepared for 128 alone misses the quanta of each burst past its latency.
 
 ## Links
 
@@ -43,4 +76,4 @@ GitHub Pages cannot set custom HTTP headers, so cross-origin isolation (required
 
 ## Third-party licenses
 
-The deployed site bundles third-party open-source software. Attribution is auto-generated at build time by [`rollup-plugin-license`](https://github.com/mjeanroy/rollup-plugin-license) into `dist/THIRD_PARTY_LICENSES.txt` and rendered on the [`/licenses.html`](licenses.html) subpage. If a dependency pre-bundles further OSS code that the rollup graph can't see, list it in `INLINED_BUNDLED_DEPS` in `vite.config.ts` so it gets attributed too.
+The site bundles third-party open-source software. Attribution is generated at build time by [`rollup-plugin-license`](https://github.com/mjeanroy/rollup-plugin-license) into `dist/THIRD_PARTY_LICENSES.txt` and rendered on the [`/licenses.html`](licenses.html) subpage. If a dependency pre-bundles further OSS code that the rollup graph can't see, list it in `INLINED_BUNDLED_DEPS` in `licenses.ts` so it gets attributed too.
