@@ -11,6 +11,7 @@ const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
   'streaming-gain-stereo': () => import('./demos/streaming-gain-stereo'),
   'js-callback': () => import('./demos/js-callback'),
   'js-copying': () => import('./demos/js-copying'),
+  'guitar-lstm': () => import('./demos/guitar-lstm'),
 }
 
 type Result = { checks: Checks } | { error: string }

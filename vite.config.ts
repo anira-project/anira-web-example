@@ -41,6 +41,7 @@ export default defineConfig({
         'streaming-gain-stereo': './streaming-gain-stereo.html',
         'js-callback': './js-callback.html',
         'js-copying': './js-copying.html',
+        'guitar-lstm': './guitar-lstm.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },

@@ -1,0 +1,22 @@
+{
+  "models": [{ "engine": "onnxruntime", "path": "GuitarLSTM-libtorch-dynamic.onnx" }],
+  "inputs": [
+    {
+      "name": "audio_in",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["any", 2048], ["channel", 1], ["time", 150]],
+      "window": { "min": 2197, "max": 2197 },
+      "overlap": 149
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio_out",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["any", 2048], ["time", 1]],
+      "window": { "min": 2048, "max": 2048 }
+    }
+  ]
+}

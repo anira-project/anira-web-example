@@ -34,6 +34,7 @@ const CHECKS = [
   'streaming-gain-stereo',
   'js-callback',
   'js-copying',
+  'guitar-lstm',
 ]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
@@ -45,6 +46,7 @@ const DEMOS = [
   'streaming-gain-stereo.html',
   'js-callback.html',
   'js-copying.html',
+  'guitar-lstm.html',
 ]
 
 const types = {
