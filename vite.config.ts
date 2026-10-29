@@ -39,6 +39,7 @@ export default defineConfig({
         'pre-post-processors': './pre-post-processors.html',
         'steerable-nafx': './steerable-nafx.html',
         'streaming-gain-stereo': './streaming-gain-stereo.html',
+        'js-callback': './js-callback.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },

@@ -32,6 +32,7 @@ const CHECKS = [
   'pre-post-processors',
   'steerable-nafx',
   'streaming-gain-stereo',
+  'js-callback',
 ]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
@@ -41,6 +42,7 @@ const DEMOS = [
   'pre-post-processors.html',
   'steerable-nafx.html',
   'streaming-gain-stereo.html',
+  'js-callback.html',
 ]
 
 const types = {
@@ -139,12 +141,19 @@ const open = async (browser, url, initScript) => {
     )
       errors.push(text)
   })
-  page.on('pageerror', (error) => errors.push(`page error: ${error.message}`))
+  // A page error also ends the wait for the page (a demo that threw never gets ready).
+  let pageFailed
+  const failure = new Promise((_, reject) => (pageFailed = reject))
+  failure.catch(() => {})
+  page.on('pageerror', (error) => {
+    errors.push(`page error: ${error.message}`)
+    pageFailed(new Error(`the page threw: ${error.message}`))
+  })
   page.on('requestfailed', (request) =>
     errors.push(`request failed: ${request.url()} (${request.failure()?.errorText})`)
   )
   await page.goto(url)
-  return { page, errors }
+  return { page, errors, failure }
 }
 
 const runCheck = async (browser, base, name) => {
@@ -201,7 +210,7 @@ const playedRms = (page) =>
   })
 
 const runPage = async (browser, base, pathname, demo) => {
-  const { page, errors } = await open(
+  const { page, errors, failure } = await open(
     browser,
     `${base}${pathname}`,
     demo ? tapDestination : undefined
@@ -211,13 +220,12 @@ const runPage = async (browser, base, pathname, demo) => {
     if (crossOriginIsolated) console.log('ok: the page is cross-origin isolated')
     else fail('the page is not cross-origin isolated')
     if (demo) {
-      await page.waitForFunction(
-        () => !document.getElementById('loading-indicator'),
-        null,
-        {
+      await Promise.race([
+        page.waitForFunction(() => !document.getElementById('loading-indicator'), null, {
           timeout: 120000,
-        }
-      )
+        }),
+        failure,
+      ])
       console.log('ok: the demo is ready (the loading overlay is gone)')
       await page.click('#audio-toggle')
       await page.waitForTimeout(2000)

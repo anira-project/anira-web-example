@@ -9,6 +9,7 @@ const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
   'pre-post-processors': () => import('./demos/pre-post-processors'),
   'steerable-nafx': () => import('./demos/steerable-nafx'),
   'streaming-gain-stereo': () => import('./demos/streaming-gain-stereo'),
+  'js-callback': () => import('./demos/js-callback'),
 }
 
 type Result = { checks: Checks } | { error: string }

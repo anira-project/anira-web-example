@@ -1,23 +1,23 @@
 # JS Callback
 
 Inference doesn't have to run inside anira's WASM module — it can
-just as well run in JavaScript on the inference worker thread. This
-demo shows the simplest version of that: it plugs in
-[`JSBackendBase`](https://anira-project.github.io/anira/web-api/reference/class/JSBackendBase.html)
-as the inference backend, which fires a JS hook for every block and
-performs a passthrough copy on the WASM side. No model is actually
-loaded — the `.onnx` file is registered in `ModelData` for the
-plumbing's sake, but `JSBackendBase` ignores it.
+just as well run in JavaScript on the inference thread. This demo
+shows the simplest version of that: a **JavaScript engine** whose
+`process` anira calls from the Worker's C loop for every inference.
+It passes its inputs through, one native copy of the shared memory
+per tensor (`copyWithin`). No model is loaded: the model config's
+entry names the engine and no file, and the pipeline registers the
+engine with `ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL`.
 
-So what you hear is the unmodified input. The point of the demo is
-the wire-up: how to swap anira's default inference path for a
-JavaScript one. The
-[js-copying demo](/js-copying.html) takes the next step and
-subclasses `JSBackendBase` to ship a real custom backend with its
-own custom inference worker; the
-[onnx-runtime-web-backend demo](/onnx-runtime-web-backend.html)
-shows the same pattern using `onnxruntime-web` to actually run a
-model.
+So what you hear is the unmodified input, the handler's latency
+later. The point of the demo is the wire-up: an engine is defined
+with `defineEngine` in the context's **worker module** (`worker.ts`),
+which every inference Worker imports in its own realm before its
+loop; `process` is synchronous there. The
+[JS Copying demo](js-copying.html) writes the same engine as a class
+that copies sample by sample, the template for wrapping another
+runtime; the [ONNX Runtime Web Backend demo](onnx-runtime-web-backend.html)
+uses the pattern to run a model with `onnxruntime-web`.
 
 Full pattern in
 [Custom Inference Backends](https://anira-project.github.io/anira/web-api/custom_inference_backends.html).
