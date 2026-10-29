@@ -9,26 +9,27 @@ const RATE = 48000
 const QUANTUM = 128
 const QUANTA = 64
 
+/** A passthrough demo as its setup loads it: the context, and `start` for the chain. */
 export type PassthroughDemo = {
   anira: Anira
   context: Context
-  audioNode: AniraAudioNode
-  latency: number
-  teardown: () => void
+  start: (
+    audio: BaseAudioContext,
+    options: { waitMs: number }
+  ) => Promise<{ audioNode: AniraAudioNode; latency: () => number; teardown: () => void }>
 }
 
 export const checkPassthrough = async (
-  create: (
-    audio: BaseAudioContext,
-    options: { waitMs: number }
-  ) => Promise<PassthroughDemo>,
+  load: () => Promise<PassthroughDemo>,
   { ownThread = false } = {}
 ): Promise<Checks> => {
   const checks: Checks = []
   const check = (ok: boolean, what: string) => checks.push({ ok, what })
 
   const audio = new OfflineAudioContext(2, QUANTUM * QUANTA, RATE)
-  const demo = await create(audio, { waitMs: 500 })
+  const loaded = await load()
+  const chain = await loaded.start(audio, { waitMs: 500 })
+  const demo = { ...loaded, ...chain, latency: chain.latency() }
   // JS Callback starts its own inference thread (a context without a pool); JS Copying has the
   // context's default pool. Either way the Workers must be in their loops first.
   const threads = ownThread ? new InferenceThreads(demo.anira, demo.context) : null

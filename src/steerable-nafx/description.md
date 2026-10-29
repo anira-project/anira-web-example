@@ -17,7 +17,7 @@ window from the input ring. No stage, no worklet module: the demo is
 the plain chain of [Simple Gain Stereo](simple-gain-stereo.html),
 mono.
 
-The contract is Hard at the render quantum: 23.2 ms per inference
+The contract is Hard, its geometry measured on the running context: 23.2 ms per inference
 (1024 samples at 44.1 kHz, the real-time threshold of the 2.x demo)
 and 2 warm-up runs. Model windows and overlaps are covered in the
 [usage guide](https://anira-project.github.io/anira/usage.html).

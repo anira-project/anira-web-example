@@ -1,4 +1,4 @@
-import { createScyclone } from './setup'
+import { loadScyclone } from './setup'
 import { setupControls } from './controls'
 import { setupDemoUI } from '../utils/setupDemoUI'
 
@@ -9,14 +9,8 @@ import { setupDemoUI } from '../utils/setupDemoUI'
 const audio = new Audio('drumloop.mp3')
 const audioContext = new AudioContext({ sampleRate: 48000 })
 
-const demo = await createScyclone(audioContext)
-
-// The context's pool: its Wasm Workers start once this thread yields; the page is ready once
-// they are in their loops.
-await demo.context.ready()
-console.log(`inference threads: ${demo.context.threads}`)
-
-const { removeLoadingIndicator } = setupDemoUI(audio, audioContext)
+// At load: the module, the context and the configs. The two streams wait for the first Play.
+const demo = await loadScyclone()
 
 // -------------------------------------------------------------------------
 // Audio graph
@@ -27,39 +21,50 @@ const { removeLoadingIndicator } = setupDemoUI(audio, audioContext)
 //           └─► inputGain ─┬─► funk node ───► fadeGain1 ─┐         │
 //                          └─► djembe node ─► fadeGain2 ─┴─► wetGain ─┘
 
-const sourceNode = audioContext.createMediaElementSource(audio)
+const { removeLoadingIndicator } = setupDemoUI({
+  audio,
+  audioContext,
+  // The first Play, on the running context: the two streams, the pool, the graph.
+  start: async () => {
+    const chain = await demo.start(audioContext)
+    await demo.context.ready() // the pool's Wasm Workers start once this thread yields
+    console.log(`inference threads: ${demo.context.threads}`)
 
-// Delay the dry path to align with the models' latency (handler.latency(), in samples).
-const dryLatencySamples = Math.max(demo.funk.latency, demo.djembe.latency)
-const dryDelay = audioContext.createDelay(2)
-dryDelay.delayTime.value = dryLatencySamples / audioContext.sampleRate
+    const sourceNode = audioContext.createMediaElementSource(audio)
 
-const dryGain = audioContext.createGain()
-const wetGain = audioContext.createGain()
+    // The dry path waits for the slower model: setupDemoUI sets the delay to chain.latency(),
+    // the larger of the two handlers' latencies, now and after a re-prepare.
+    const dryDelay = new DelayNode(audioContext, { maxDelayTime: 2 })
 
-// Stereo → mono downmix before the models.
-const inputGain = audioContext.createGain()
-inputGain.channelCount = 1
-inputGain.channelCountMode = 'explicit'
-inputGain.channelInterpretation = 'speakers'
+    const dryGain = audioContext.createGain()
+    const wetGain = audioContext.createGain()
 
-const fadeGain1 = audioContext.createGain()
-const fadeGain2 = audioContext.createGain()
+    // Stereo → mono downmix before the models.
+    const inputGain = audioContext.createGain()
+    inputGain.channelCount = 1
+    inputGain.channelCountMode = 'explicit'
+    inputGain.channelInterpretation = 'speakers'
 
-sourceNode.connect(dryDelay).connect(dryGain).connect(audioContext.destination)
-sourceNode.connect(inputGain)
-inputGain.connect(demo.funk.audioNode.node).connect(fadeGain1).connect(wetGain)
-inputGain.connect(demo.djembe.audioNode.node).connect(fadeGain2).connect(wetGain)
-wetGain.connect(audioContext.destination)
+    const fadeGain1 = audioContext.createGain()
+    const fadeGain2 = audioContext.createGain()
 
-// -------------------------------------------------------------------------
-// Parameter state + UI
-// -------------------------------------------------------------------------
+    sourceNode.connect(dryDelay).connect(dryGain).connect(audioContext.destination)
+    sourceNode.connect(inputGain)
+    inputGain.connect(chain.funk.audioNode.node).connect(fadeGain1).connect(wetGain)
+    inputGain.connect(chain.djembe.audioNode.node).connect(fadeGain2).connect(wetGain)
+    wetGain.connect(audioContext.destination)
 
-setupControls(
-  { audioContext, inputGain, fadeGain1, fadeGain2, dryGain, wetGain },
-  document.getElementById('controls')!
-)
+    // -----------------------------------------------------------------------
+    // Parameter state + UI
+    // -----------------------------------------------------------------------
+
+    setupControls(
+      { audioContext, inputGain, fadeGain1, fadeGain2, dryGain, wetGain },
+      document.getElementById('controls')!
+    )
+    return { latency: chain.latency, remeasure: chain.remeasure, dry: dryDelay }
+  },
+})
 
 removeLoadingIndicator()
 console.log('RAVE dual-model demo initialised.')

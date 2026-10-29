@@ -5,34 +5,40 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
-  renderBurstFrames,
+  measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
 
-/** The render quantum: one handler call per quantum. */
-const QUANTUM = 128
-
-export type SteerableNafx = {
-  anira: Anira
-  context: Context
+/** The chain on a running context: what `start` returns. */
+export type SteerableNafxChain = {
   audioNode: AniraAudioNode
   /** The handler's latency in samples: the output is the input this much later. */
-  latency: number
+  latency: () => number
+  /** Measure the context's render geometry again and re-prepare the running node. */
+  remeasure: () => Promise<void>
   teardown: () => void
 }
 
+/** What the page loads before any audio runs; `start` builds the chain on a context. */
+export type SteerableNafx = {
+  anira: Anira
+  context: Context
+  start: (
+    audioContext: BaseAudioContext,
+    options?: { waitMs?: number }
+  ) => Promise<SteerableNafxChain>
+}
+
 /**
- * The demo's anira chain on `audioContext`, up to the handler's audio node: the 2-block
- * Steerable-NAFX CNN on the built-in ONNX Runtime engine, mono. Its receptive field is the
- * model config's overlap: each inference takes 1156 samples, the 132 of the previous window
- * and 1024 new ones, and yields 1024. No stage and no worklet module: the windowing that the
- * 2.x demo wrote in JavaScript in its audio worklet is the declared window. `waitMs` lets each
- * quantum wait for its inference (an offline render).
+ * The demo's anira chain: the 2-block Steerable-NAFX CNN on the built-in ONNX Runtime engine,
+ * mono. Its receptive field is the model config's overlap: each inference takes 1156 samples,
+ * the 132 of the previous window and 1024 new ones, and yields 1024. No stage and no worklet
+ * module: the windowing that the 2.x demo wrote in JavaScript in its audio worklet is the
+ * declared window. Loading needs no audio; `start` needs a running context (a live one is
+ * measured: `await audioContext.resume()` first) and builds the chain up to the handler's audio
+ * node. `waitMs` lets each quantum wait for its inference (an offline render).
  */
-export async function createSteerableNafx(
-  audioContext: BaseAudioContext,
-  { waitMs = 0 } = {}
-): Promise<SteerableNafx> {
+export async function loadSteerableNafx(): Promise<SteerableNafx> {
   // 1. The module on this thread and its log, to the console.
   const anira = await Anira.create()
   anira.setLogHook()
@@ -50,31 +56,47 @@ export async function createSteerableNafx(
     anira,
     new URL('steerable-nafx.model.json', site)
   )
-  const contract = (
-    await Contract.fromUrl(anira, new URL('steerable-nafx.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
+  const contract = await Contract.fromUrl(
+    anira,
+    new URL('steerable-nafx.contract.json', site)
+  )
 
-  // 4. The pipeline and the handler.
-  const pipeline = Pipeline.create(anira).addInference(model)
-  const handler = Handler.create(context, pipeline).prepare(contract)
-  pipeline.destroy()
-  contract.destroy()
-  const latency = handler.latency()
-  console.log(`latency: ${latency} samples`)
+  const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
+    // 4. The geometry, measured on the running context: one render quantum per call, blocks up
+    //    to the burst it renders back to back, so the latency the handler reports covers it.
+    const geometry = await measureRenderGeometry(audioContext)
+    contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
-  // 5. The audio node: mono in and out.
-  const audioNode = await handler.createAudioNode(audioContext, {
-    waitMs,
-  })
+    // 5. The pipeline and the handler.
+    const pipeline = Pipeline.create(anira).addInference(model)
+    const handler = Handler.create(context, pipeline).prepare(contract)
+    pipeline.destroy()
+    console.log(`latency: ${handler.latency()} samples`)
 
-  // 6. The teardown, in reverse: the node stops calling the handler first.
-  const teardown = () => {
-    audioNode.node.disconnect()
-    audioNode.destroy()
-    handler.destroy()
-    model.destroy()
-    context.destroy()
-    stopLogPump()
+    // 6. The audio node: mono in and out. An offline render waits for its inferences: the pool
+    //    first.
+    if (waitMs > 0) await context.ready()
+    const audioNode = await handler.createAudioNode(audioContext, { waitMs })
+
+    // 7. After an output-device change: measure with the probe, re-prepare the running node.
+    const remeasure = async () => {
+      const g = await measureRenderGeometry(audioContext, { probe: true })
+      contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      audioNode.prepare(contract)
+      console.log(`latency: ${handler.latency()} samples`)
+    }
+
+    // 8. The teardown, in reverse: the node stops calling the handler first.
+    const teardown = () => {
+      audioNode.node.disconnect()
+      audioNode.destroy()
+      handler.destroy()
+      contract.destroy()
+      model.destroy()
+      context.destroy()
+      stopLogPump()
+    }
+    return { audioNode, latency: () => handler.latency(), remeasure, teardown }
   }
-  return { anira, context, audioNode, latency, teardown }
+  return { anira, context, start }
 }

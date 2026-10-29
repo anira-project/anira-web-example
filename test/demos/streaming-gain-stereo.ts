@@ -1,8 +1,8 @@
-// Streaming Gain Stereo, offline: the demo's chain (createStreamingGainStereo) on the
+// Streaming Gain Stereo, offline: the demo's chain (loadStreamingGainStereo + start) on the
 // context's default pool, a stereo tone into the node's first input and a 3 Hz gain signal into
 // its second. Each output sample is its input sample times the gain sample of the same instant,
 // the handler's latency later; the second output plays the model's copy of the gain.
-import { createStreamingGainStereo } from '../../src/streaming-gain-stereo/setup'
+import { loadStreamingGainStereo } from '../../src/streaming-gain-stereo/setup'
 import { energy, sine, worstError, type Checks } from '../common'
 
 const RATE = 48000
@@ -14,7 +14,9 @@ export const run = async (): Promise<Checks> => {
   const check = (ok: boolean, what: string) => checks.push({ ok, what })
 
   const audio = new OfflineAudioContext(3, QUANTUM * QUANTA, RATE)
-  const demo = await createStreamingGainStereo(audio, { waitMs: 500 })
+  const loaded = await loadStreamingGainStereo()
+  const chain = await loaded.start(audio, { waitMs: 500 })
+  const demo = { ...loaded, ...chain, latency: chain.latency() }
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()

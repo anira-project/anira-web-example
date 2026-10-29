@@ -1,11 +1,11 @@
-// Steerable-NAFX, offline: the demo's chain (createSteerableNafx) on the context's default
+// Steerable-NAFX, offline: the demo's chain (loadSteerableNafx + start) on the context's default
 // pool, a tone rendered through its node. The oracle is the same model run once over the whole
 // signal by onnxruntime-web on this page: the export's time axis is dynamic, and 132 zeros ahead
 // of the signal are the history the declared overlap starts from. The streamed output must be
 // that run's output, the handler's latency later: the declared window and overlap do what the
 // 2.x JavaScript windowing did.
 import * as ort from 'onnxruntime-web/wasm'
-import { createSteerableNafx } from '../../src/steerable-nafx/setup'
+import { loadSteerableNafx } from '../../src/steerable-nafx/setup'
 import { energy, renderOffline, sine, type Checks } from '../common'
 
 const RATE = 44100
@@ -38,7 +38,9 @@ export const run = async (): Promise<Checks> => {
   const check = (ok: boolean, what: string) => checks.push({ ok, what })
 
   const audio = new OfflineAudioContext(1, QUANTUM * QUANTA, RATE)
-  const demo = await createSteerableNafx(audio, { waitMs: 500 })
+  const loaded = await loadSteerableNafx()
+  const chain = await loaded.start(audio, { waitMs: 500 })
+  const demo = { ...loaded, ...chain, latency: chain.latency() }
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()

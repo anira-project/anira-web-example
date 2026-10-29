@@ -1,6 +1,6 @@
-import { createJsCallback } from './setup'
+import { loadJsCallback } from './setup'
 import { InferenceThreads } from '../utils/inferenceThreads'
-import { setupDemoUI } from '../utils/setupDemoUI'
+import { connectDryWet, setupDemoUI } from '../utils/setupDemoUI'
 
 const audio = new Audio('vibes.mp3')
 const audioContext = new AudioContext({ sampleRate: 48000 })
@@ -9,7 +9,8 @@ const audioContext = new AudioContext({ sampleRate: 48000 })
 // ------ anira ------
 // -------------------
 
-const demo = await createJsCallback(audioContext)
+// At load: the module, the context and the configs. The chain waits for the first Play.
+const demo = await loadJsCallback()
 
 // One inference thread to start with: a Wasm Worker that imports the worker module (the
 // engine is defined there), then runs the context's queue.
@@ -20,14 +21,18 @@ threads.add()
 // ------ Audio -------
 // --------------------
 
-const { removeLoadingIndicator, connectAudioGraph } = setupDemoUI(
+const { removeLoadingIndicator } = setupDemoUI({
   audio,
   audioContext,
-  threads
-)
-
-const sourceNode = audioContext.createMediaElementSource(audio)
-connectAudioGraph(sourceNode, demo.audioNode.node)
+  threads,
+  // The first Play, on the running context: the chain and the graph.
+  start: async () => {
+    const chain = await demo.start(audioContext)
+    const sourceNode = audioContext.createMediaElementSource(audio)
+    const dry = connectDryWet(audioContext, sourceNode, chain.audioNode.node)
+    return { latency: chain.latency, remeasure: chain.remeasure, dry }
+  },
+})
 
 removeLoadingIndicator()
 console.log('Demo initialized and ready!')

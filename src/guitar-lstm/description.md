@@ -19,6 +19,6 @@ the pre-processing of anira's native HybridNN example
 (`extras/models/hybrid-nn`) in JavaScript; anira's default
 pre-processing would fill the tensor with one contiguous window.
 
-The contract is Hard at the render quantum: 46.4 ms per inference
+The contract is Hard, its geometry measured on the running context: 46.4 ms per inference
 (2048 samples at 44.1 kHz, the real-time threshold of the 2.x demo)
 and 2 warm-up runs.

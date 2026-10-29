@@ -5,36 +5,43 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
-  renderBurstFrames,
+  measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-
-/** The render quantum: one handler call per quantum. */
-const QUANTUM = 128
 
 /** The model's Static input `gain`: input slot 1 of the model config. */
 export const GAIN_SLOT = 1
 
-export type SimpleGainStereo = {
-  anira: Anira
-  context: Context
+/** The chain on a running context: what `start` returns. */
+export type SimpleGainStereoChain = {
   audioNode: AniraAudioNode
   /** The gain's AudioParam: set, ramp or automate it. */
   gain: AudioParam
   /** The handler's latency in samples: the output is the input this much later. */
-  latency: number
+  latency: () => number
+  /** Measure the context's render geometry again and re-prepare the running node. */
+  remeasure: () => Promise<void>
   teardown: () => void
 }
 
+/** What the page loads before any audio runs; `start` builds the chain on a context. */
+export type SimpleGainStereo = {
+  anira: Anira
+  context: Context
+  start: (
+    audioContext: BaseAudioContext,
+    options?: { waitMs?: number }
+  ) => Promise<SimpleGainStereoChain>
+}
+
 /**
- * The demo's anira chain on `audioContext`, up to the handler's audio node (the page connects
- * it): the model and contract files a native host loads unchanged, run by the module's built-in
- * ONNX Runtime engine. `waitMs` lets each quantum wait for its inference (an offline render).
+ * The demo's anira chain: the model and contract files a native host loads unchanged, run by
+ * the module's built-in ONNX Runtime engine. Loading needs no audio; `start` needs a running
+ * context (a live one is measured: `await audioContext.resume()` first) and builds the chain up
+ * to the handler's audio node, which the page connects. `waitMs` lets each quantum wait for its
+ * inference (an offline render).
  */
-export async function createSimpleGainStereo(
-  audioContext: BaseAudioContext,
-  { waitMs = 0 } = {}
-): Promise<SimpleGainStereo> {
+export async function loadSimpleGainStereo(): Promise<SimpleGainStereo> {
   // 1. The module on this thread (a shared 512 MiB memory) and its log, to the console.
   const anira = await Anira.create()
   anira.setLogHook()
@@ -45,41 +52,60 @@ export async function createSimpleGainStereo(
   const context = Context.create(anira)
 
   // 3. The configs: public/simple-gain-stereo.model.json names the .onnx beside it, which
-  //    fromUrl fetches and attaches; the contract leaves the geometry to the host: one render
-  //    quantum per call, up to the burst a live context renders back to back.
+  //    fromUrl fetches and attaches; the contract leaves the geometry to the host.
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const model = await ModelConfig.fromUrl(
     anira,
     new URL('simple-gain-stereo.model.json', site)
   )
-  const contract = (
-    await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
+  const contract = await Contract.fromUrl(
+    anira,
+    new URL('simple-gain-stereo.contract.json', site)
+  )
 
-  // 4. The pipeline and the handler.
-  const pipeline = Pipeline.create(anira).addInference(model)
-  const handler = Handler.create(context, pipeline).prepare(contract)
-  pipeline.destroy() // the handler copied it
-  contract.destroy() // so did the prepare
-  const latency = handler.latency()
-  console.log(`latency: ${latency} samples`)
+  const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
+    // 4. The geometry, measured on the running context: one render quantum per call, blocks up
+    //    to the burst it renders back to back, so the latency the handler reports covers it.
+    const geometry = await measureRenderGeometry(audioContext)
+    contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
-  // 5. The audio node: stereo in and out, the gain a k-rate AudioParam of the node.
-  const audioNode = await handler.createAudioNode(audioContext, {
-    params: [GAIN_SLOT],
-    waitMs,
-  })
-  const gain = audioNode.params.get(GAIN_SLOT)!
-  gain.value = 1
+    // 5. The pipeline and the handler.
+    const pipeline = Pipeline.create(anira).addInference(model)
+    const handler = Handler.create(context, pipeline).prepare(contract)
+    pipeline.destroy() // the handler copied it
+    console.log(`latency: ${handler.latency()} samples`)
 
-  // 6. The teardown, in reverse: the node stops calling the handler first.
-  const teardown = () => {
-    audioNode.node.disconnect()
-    audioNode.destroy()
-    handler.destroy()
-    model.destroy()
-    context.destroy()
-    stopLogPump()
+    // 6. The audio node: one input and output per Streamed slot (stereo), the gain a k-rate
+    //    AudioParam of the node. An offline render waits for its inferences: the pool first.
+    if (waitMs > 0) await context.ready()
+    const audioNode = await handler.createAudioNode(audioContext, {
+      params: [GAIN_SLOT],
+      waitMs,
+    })
+    const gain = audioNode.params.get(GAIN_SLOT)!
+    gain.value = 1
+
+    // 7. After an output-device change: measure with the probe (Chromium keeps the baseLatency
+    //    of the device the context was created on), re-prepare the running node (it holds off,
+    //    silent, meanwhile) and the latency changes with it.
+    const remeasure = async () => {
+      const g = await measureRenderGeometry(audioContext, { probe: true })
+      contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      audioNode.prepare(contract)
+      console.log(`latency: ${handler.latency()} samples`)
+    }
+
+    // 8. The teardown, in reverse: the node stops calling the handler first.
+    const teardown = () => {
+      audioNode.node.disconnect()
+      audioNode.destroy()
+      handler.destroy()
+      contract.destroy()
+      model.destroy()
+      context.destroy()
+      stopLogPump()
+    }
+    return { audioNode, gain, latency: () => handler.latency(), remeasure, teardown }
   }
-  return { anira, context, audioNode, gain, latency, teardown }
+  return { anira, context, start }
 }

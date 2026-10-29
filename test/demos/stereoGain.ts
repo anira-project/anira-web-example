@@ -14,27 +14,32 @@ const CHANGE_QUANTUM = 32
 const GAIN_BEFORE = 0.5
 const GAIN_AFTER = 1.5
 
+/** A stereo gain demo as its setup loads it: the context, and `start` for the chain. */
 export type StereoGainDemo = {
   anira: Anira
   context: Context
-  audioNode: AniraAudioNode
-  gain: AudioParam
-  latency: number
-  teardown: () => void
+  start: (
+    audio: BaseAudioContext,
+    options: { waitMs: number }
+  ) => Promise<{
+    audioNode: AniraAudioNode
+    gain: AudioParam
+    latency: () => number
+    teardown: () => void
+  }>
 }
 
 export const checkStereoGain = async (
-  create: (
-    audio: BaseAudioContext,
-    options: { waitMs: number }
-  ) => Promise<StereoGainDemo>,
+  load: () => Promise<StereoGainDemo>,
   { effective = (gain: number) => gain, what = 'the gain AudioParam' } = {}
 ): Promise<Checks> => {
   const checks: Checks = []
   const check = (ok: boolean, text: string) => checks.push({ ok, what: text })
 
   const audio = new OfflineAudioContext(2, QUANTUM * QUANTA, RATE)
-  const demo = await create(audio, { waitMs: 500 })
+  const loaded = await load()
+  const chain = await loaded.start(audio, { waitMs: 500 })
+  const demo = { ...loaded, ...chain, latency: chain.latency() }
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()

@@ -4,42 +4,47 @@ import {
   Contract,
   Handler,
   ModelConfig,
+  ONNXRUNTIME_WEB_ENGINE_ID, // from the root entry: naming the engine bundles no onnxruntime-web
   Pipeline,
-  renderBurstFrames,
+  measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-// The engine's id from the root entry: naming the engine bundles no onnxruntime-web here.
-import { ONNXRUNTIME_WEB_ENGINE_ID } from '@anira-project/anira'
 // The worker module, bundled by Vite into one self-contained ES module; its URL.
 import workerModule from './worker.ts?worker&url'
-
-/** The render quantum: one handler call per quantum. */
-const QUANTUM = 128
 
 /** The model's Static input `gain`: input slot 1 of the model config. */
 export const GAIN_SLOT = 1
 
-export type OnnxRuntimeWebBackend = {
-  anira: Anira
-  context: Context
+/** The chain on a running context: what `start` returns. */
+export type OnnxRuntimeWebBackendChain = {
   audioNode: AniraAudioNode
   /** The gain's AudioParam: set, ramp or automate it. */
   gain: AudioParam
   /** The handler's latency in samples: the output is the input this much later. */
-  latency: number
+  latency: () => number
+  /** Measure the context's render geometry again and re-prepare the running node. */
+  remeasure: () => Promise<void>
   teardown: () => void
 }
 
+/** What the page loads before any audio runs; `start` builds the chain on a context. */
+export type OnnxRuntimeWebBackend = {
+  anira: Anira
+  context: Context
+  start: (
+    audioContext: BaseAudioContext,
+    options?: { waitMs?: number }
+  ) => Promise<OnnxRuntimeWebBackendChain>
+}
+
 /**
- * The demo's anira chain on `audioContext`, up to the handler's audio node: the stereo gain
- * model of Simple Gain Stereo, run by the ONNX Runtime Web engine, a JavaScript engine defined
- * in the context's worker module (worker.ts), on each inference Worker. `waitMs` lets each
- * quantum wait for its inference (an offline render).
+ * The demo's anira chain: the stereo gain model of Simple Gain Stereo, run by the ONNX Runtime
+ * Web engine, a JavaScript engine defined in the context's worker module (worker.ts), on each
+ * inference Worker. Loading needs no audio; `start` needs a running context (a live one is
+ * measured: `await audioContext.resume()` first) and builds the chain up to the handler's audio
+ * node. `waitMs` lets each quantum wait for its inference (an offline render).
  */
-export async function createOnnxRuntimeWebBackend(
-  audioContext: BaseAudioContext,
-  { waitMs = 0 } = {}
-): Promise<OnnxRuntimeWebBackend> {
+export async function loadOnnxRuntimeWebBackend(): Promise<OnnxRuntimeWebBackend> {
   // 1. The module on this thread and its log, to the console.
   const anira = await Anira.create()
   anira.setLogHook()
@@ -56,36 +61,54 @@ export async function createOnnxRuntimeWebBackend(
     anira,
     new URL('simple-gain-stereo-ort-web.model.json', site)
   )
-  const contract = (
-    await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
+  const contract = await Contract.fromUrl(
+    anira,
+    new URL('simple-gain-stereo.contract.json', site)
+  )
 
-  // 4. The pipeline registers the JavaScript engine under the same id, then the handler.
-  const pipeline = Pipeline.create(anira)
-    .addInference(model)
-    .registerEngine(ONNXRUNTIME_WEB_ENGINE_ID)
-  const handler = Handler.create(context, pipeline).prepare(contract)
-  pipeline.destroy()
-  contract.destroy()
-  const latency = handler.latency()
-  console.log(`latency: ${latency} samples`)
+  const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
+    // 4. The geometry, measured on the running context: one render quantum per call, blocks up
+    //    to the burst it renders back to back, so the latency the handler reports covers it.
+    const geometry = await measureRenderGeometry(audioContext)
+    contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
-  // 5. The audio node: stereo in and out, the gain a k-rate AudioParam of the node.
-  const audioNode = await handler.createAudioNode(audioContext, {
-    params: [GAIN_SLOT],
-    waitMs,
-  })
-  const gain = audioNode.params.get(GAIN_SLOT)!
-  gain.value = 1
+    // 5. The pipeline registers the JavaScript engine under the same id, then the handler.
+    const pipeline = Pipeline.create(anira)
+      .addInference(model)
+      .registerEngine(ONNXRUNTIME_WEB_ENGINE_ID)
+    const handler = Handler.create(context, pipeline).prepare(contract)
+    pipeline.destroy()
+    console.log(`latency: ${handler.latency()} samples`)
 
-  // 6. The teardown, in reverse: the node stops calling the handler first.
-  const teardown = () => {
-    audioNode.node.disconnect()
-    audioNode.destroy()
-    handler.destroy()
-    model.destroy()
-    context.destroy()
-    stopLogPump()
+    // 6. The audio node: stereo in and out, the gain a k-rate AudioParam of the node. An
+    //    offline render waits for its inferences: the pool first.
+    if (waitMs > 0) await context.ready()
+    const audioNode = await handler.createAudioNode(audioContext, {
+      params: [GAIN_SLOT],
+      waitMs,
+    })
+    const gain = audioNode.params.get(GAIN_SLOT)!
+    gain.value = 1
+
+    // 7. After an output-device change: measure with the probe, re-prepare the running node.
+    const remeasure = async () => {
+      const g = await measureRenderGeometry(audioContext, { probe: true })
+      contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      audioNode.prepare(contract)
+      console.log(`latency: ${handler.latency()} samples`)
+    }
+
+    // 8. The teardown, in reverse: the node stops calling the handler first.
+    const teardown = () => {
+      audioNode.node.disconnect()
+      audioNode.destroy()
+      handler.destroy()
+      contract.destroy()
+      model.destroy()
+      context.destroy()
+      stopLogPump()
+    }
+    return { audioNode, gain, latency: () => handler.latency(), remeasure, teardown }
   }
-  return { anira, context, audioNode, gain, latency, teardown }
+  return { anira, context, start }
 }

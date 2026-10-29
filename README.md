@@ -43,13 +43,13 @@ node test/run.mjs chromium build steerable-nafx,steerable-nafx.html   # a subset
 `test/run.mjs` builds the site with the check page `test/check.html`, serves it with COOP/COEP and opens, in headless Chromium and Firefox, built and under the dev server:
 
 - every **check** (`test/check.html?check=<demo>`): the demo's own chain (its `setup.ts`) rendered through an `OfflineAudioContext` and its numbers checked — the gain demos against `input × gain`, the passthrough engines against the input, Steerable-NAFX and GuitarLSTM against the same model run over the whole signal by `onnxruntime-web` on the page, RAVE (which samples noise) for finite, latency-aligned model output;
-- every **page**: it gets ready (its context's default pool in its loops; JS Callback's `+ / − Worker` count up and down), plays after a click (the live output measured on an `AnalyserNode` tap: not silent, silent with the gain at 0), with no console error. Headless Firefox here starts no `AudioContext` (no sound server), so it skips the playing steps.
+- every **page**: it gets ready and plays after a click on Play (the live output measured on an `AnalyserNode` tap: not silent, silent with the gain at 0); the latency badge and the dry delay agree after the prepare and again after a dispatched `sinkchange` re-prepare; its context's default pool is in its loops (JS Callback: its `+ / − Worker` count up and down); with no console error. Headless Firefox here starts no `AudioContext` (no sound server), so the chain is never built there and it skips the playing, latency and pool steps.
 
 What a person checks by ear: each page in Chrome and Firefox, against the 2.x site.
 
 ## Demos
 
-Each demo's anira chain is its `setup.ts` (on any `BaseAudioContext`), the page wiring its `index.ts`; the page's source viewer shows both and the JSON files.
+Each demo's anira chain is its `setup.ts`, the page wiring its `index.ts`; the page's source viewer shows both and the JSON files. A setup loads the module, the context and the configs at page load, and its `start` builds the chain on a running context (an `AudioContext` after the first Play's `resume()`, or the check's `OfflineAudioContext`). The first Play shows "Starting…" while it does.
 
 - **Simple Gain Stereo** — the stereo gain model on the module's built-in ONNX Runtime engine, from `simple-gain-stereo.model.json` and its contract; the gain is a Static input, an AudioParam of the handler's audio node.
 - **Streaming Gain Stereo** — the gain as a second Streamed input, a value per sample, driven by a Web Audio LFO into the audio node's second input (the node has one input and one output per Streamed slot).
@@ -67,7 +67,11 @@ Every demo but one creates its context with the default pool of inference thread
 
 Every demo is ported; none is removed. The 2.x custom audio worklets, `JSPrePostProcessor` subclasses, `JSBackendBase` subclasses and custom inference workers are gone: engines live in the context's worker module, stages in a worklet module, windows in the model config. Removed files: the two unused Scyclone worklets (`grain-delay-worklet.ts`, `transient-splitter-worklet.ts`), which the 2.x demo did not load either. `src/misc/JSCopyBackend.ts` is now `src/misc/JSCopyEngine.ts`.
 
-Every contract's block range runs from the render quantum to `renderBurstFrames(audioContext)`: a live context renders a device callback as a burst of quanta with no time between them, and a handler prepared for 128 alone misses the quanta of each burst past its latency.
+How the pages use the latency:
+
+- `start` measures the context's render geometry (`measureRenderGeometry`: its render quantum, and the burst of quanta a live context renders back to back) and sets it on the contract before the handler's prepare, so the latency the handler reports covers a burst; prepared for one quantum alone, a handler misses the quanta of each burst past its latency.
+- Every page shows the handler's latency, read after the prepare, in a badge ("Latency: N samples (x ms)"), and its dry path goes through a `DelayNode` set to `latency / sampleRate`, so Dry / Wet compares the same moment of the input. RAVE's dry path waits for the slower of its two models.
+- On `sinkchange` (the page switched the output device) the page measures again, re-prepares the running node (`audioNode.prepare(contract)`, which holds the node off meanwhile; the graph stays connected) and updates the delay and the badge. That is the page's call: an OS default-device change may fire no event.
 
 ## Links
 

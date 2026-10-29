@@ -202,6 +202,7 @@ const tapDestination = () => {
   AudioNode.prototype.connect = function (destination, ...rest) {
     if (destination instanceof AudioDestinationNode) {
       window.anira_test_tap ??= new AnalyserNode(destination.context, { fftSize: 4096 })
+      window.anira_test_context = destination.context
       connect.call(this, window.anira_test_tap)
     }
     return connect.call(this, destination, ...rest)
@@ -217,6 +218,26 @@ const playedRms = (page) =>
     tap.getFloatTimeDomainData(samples)
     return Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length)
   })
+
+// The latency badge shows the handler's latency, and the dry path waits exactly as long.
+const checkLatency = async (page, when) => {
+  const { text, delay, rate } = await page.evaluate(() => {
+    const badge = document.getElementById('latency-badge')
+    return {
+      text: badge?.textContent ?? '',
+      delay: Number(badge?.dataset.dryDelay),
+      rate: window.anira_test_context?.sampleRate,
+    }
+  })
+  const match = /^Latency: (\d+) samples \(([\d.]+) ms\)$/.exec(text)
+  const samples = match ? Number(match[1]) : 0
+  if (samples > 0 && Math.abs(delay - samples / rate) < 1e-6)
+    console.log(`ok: ${when}, the badge says "${text}" and the dry delay is ${delay} s`)
+  else
+    fail(
+      `${when}, the badge says "${text}" and the dry delay is ${delay} s (rate ${rate})`
+    )
+}
 
 // A page on the context's default pool logs its size once the pool is in its loops.
 const checkDefaultPool = (logs) => {
@@ -273,6 +294,16 @@ const runPage = async (browser, base, pathname, demo) => {
       ])
       console.log('ok: the demo is ready (the loading overlay is gone)')
       await page.click('#audio-toggle')
+      // The first Play builds the chain (measure, prepare, warm-up, the node) before it plays.
+      await page
+        .waitForFunction(
+          () => document.getElementById('audio-toggle')?.textContent === 'Pause',
+          null,
+          {
+            timeout: 60000,
+          }
+        )
+        .catch(() => {})
       await page.waitForTimeout(2000)
       const label = await page.textContent('#audio-toggle')
       if (label === 'Pause') {
@@ -281,6 +312,24 @@ const runPage = async (browser, base, pathname, demo) => {
         if (rms > 1e-3)
           console.log(`ok: the page's output is not silent (RMS ${rms.toFixed(4)})`)
         else fail(`the page's output is silent (RMS ${rms})`)
+        await checkLatency(page, 'after the prepare')
+        // A device change: the page's sinkchange listener re-measures, re-prepares the running
+        // node and updates the dry delay and the badge.
+        const before = logs.length
+        await page.evaluate(() =>
+          window.anira_test_context.dispatchEvent(new Event('sinkchange'))
+        )
+        await page.waitForTimeout(2000)
+        const remeasured = logs.slice(before).some((text) => /latency/.test(text))
+        if (remeasured) console.log('ok: sinkchange re-measured and re-prepared the node')
+        else fail('sinkchange did not re-prepare the node')
+        await checkLatency(page, 'after the sinkchange re-prepare')
+        const after = await playedRms(page)
+        if (after > 1e-3)
+          console.log(
+            `ok: the output plays on after the re-prepare (RMS ${after.toFixed(4)})`
+          )
+        else fail(`the output is silent after the re-prepare (RMS ${after})`)
         // A gain slider at 0 silences the model's output (the dry path is muted while wet).
         if (await page.$('#gain-slider')) {
           await page.fill('#gain-slider', '0')
@@ -290,11 +339,15 @@ const runPage = async (browser, base, pathname, demo) => {
             console.log(`ok: the gain slider at 0 silences the output (RMS ${muted})`)
           else fail(`the gain slider at 0 leaves the output at RMS ${muted}`)
         }
+        if (!(await page.$('#add-worker'))) checkDefaultPool(logs)
       } else if (!(await audioStarts(page)))
-        console.log('skipped: playing (no AudioContext starts in this browser here)')
+        console.log(
+          'skipped: playing, the latency and the pool (no AudioContext starts in this ' +
+            'browser here, so the chain is never built)'
+        )
       else fail(`the demo does not play after a click on Play (the button says ${label})`)
+      // JS Callback's threads exist from the page's load: its controls work in either case.
       if (await page.$('#add-worker')) await checkWorkerControls(page)
-      else checkDefaultPool(logs)
     } else {
       await page.waitForLoadState('networkidle')
     }

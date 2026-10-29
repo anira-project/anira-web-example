@@ -13,9 +13,14 @@ You can find the documentation for it
 
 Each demo page exposes the same controls:
 
-- **Play / Pause** — start or stop the audio source.
+- **Play / Pause** — start or stop the audio source. The first Play builds
+  the anira chain on the running audio context ("Starting…").
 - **Dry / Wet** — toggle between the unprocessed (dry) audio and the
-  model-processed (wet) signal.
+  model-processed (wet) signal; the dry path is delayed by the model's
+  latency, so the two line up.
+- **Latency** — the handler's latency, measured for this browser and output
+  device; it changes when the output device does.
+
 Every demo runs its context's default pool of inference threads, Wasm
 Workers that anira starts on the module's memory. The
 [JS Callback](js-callback.html) demo instead starts and stops its own with

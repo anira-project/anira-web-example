@@ -5,38 +5,46 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
-  renderBurstFrames,
+  measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-
-/** The render quantum: one handler call per quantum. */
-const QUANTUM = 128
 
 /** One RAVE model's stream: its audio node and its handler's latency in samples. */
 export type RaveStream = {
   audioNode: AniraAudioNode
-  latency: number
+  latency: () => number
 }
 
-export type Scyclone = {
-  anira: Anira
-  context: Context
+/** The two streams on a running context: what `start` returns. */
+export type ScycloneChain = {
   funk: RaveStream
   djembe: RaveStream
+  /** The larger of the two latencies: what the dry path waits for, in samples. */
+  latency: () => number
+  /** Measure the context's render geometry again and re-prepare both running nodes. */
+  remeasure: () => Promise<void>
   teardown: () => void
 }
 
+/** What the page loads before any audio runs; `start` builds the two streams on a context. */
+export type Scyclone = {
+  anira: Anira
+  context: Context
+  start: (
+    audioContext: BaseAudioContext,
+    options?: { waitMs?: number }
+  ) => Promise<ScycloneChain>
+}
+
 /**
- * The demo's anira chain on `audioContext`: two RAVE models (funk drums, djembe), each a handler
- * of its own on one context, mono, on the built-in ONNX Runtime engine, up to their two audio
- * nodes (the page builds the mix around them). Both models take and yield blocks of 16384
- * samples at 48 kHz. With two or more inference threads the two run in parallel. `waitMs` lets
- * each quantum wait for its inference (an offline render).
+ * The demo's anira chain: two RAVE models (funk drums, djembe), each a handler of its own on one
+ * context, mono, on the built-in ONNX Runtime engine, up to their two audio nodes (the page
+ * builds the mix around them). Both models take and yield blocks of 16384 samples at 48 kHz.
+ * With two or more inference threads the two run in parallel. Loading needs no audio; `start`
+ * needs a running context (a live one is measured: `await audioContext.resume()` first).
+ * `waitMs` lets each quantum wait for its inference (an offline render).
  */
-export async function createScyclone(
-  audioContext: BaseAudioContext,
-  { waitMs = 0 } = {}
-): Promise<Scyclone> {
+export async function loadScyclone(): Promise<Scyclone> {
   // 1. The module on this thread and its log, to the console.
   const anira = await Anira.create()
   anira.setLogHook()
@@ -49,49 +57,66 @@ export async function createScyclone(
   //    341.3 ms). A slower machine with one thread misses.
   const context = Context.create(anira)
 
-  // 3. One handler per model config, both under the same contract file: 341.3 ms per inference
-  //    (16384 samples at 48 kHz), 2 warm-up runs; the geometry is the render quantum. Each
-  //    model config sets "max_instances": 1, one loaded copy of the model. The default is one
-  //    instance per pool thread, and the default pool is half the cores (16 Workers in Chromium
-  //    and 8 in Firefox on a 32-core machine): 8 or more instances of the two 16 MB RAVE models
-  //    ran out of the module's 512 MiB memory (Aborted(OOM)), 6 or fewer did not. With one
-  //    instance each, two of the pool's threads run the two models in parallel.
+  // 3. The configs, one per model, both under the same contract file: 341.3 ms per inference
+  //    (16384 samples at 48 kHz), 2 warm-up runs. Each model config sets "max_instances": 1,
+  //    one loaded copy of the model. The default is one instance per pool thread, and the
+  //    default pool is half the cores (16 Workers in Chromium and 8 in Firefox on a 32-core
+  //    machine): 8 or more instances of the two 16 MB RAVE models ran out of the module's
+  //    512 MiB memory (Aborted(OOM)), 6 or fewer did not. With one instance each, two of the
+  //    pool's threads run the two models in parallel.
   const site = new URL(import.meta.env.BASE_URL, location.href)
-  const handlers: Handler[] = []
-  const models: ModelConfig[] = []
-  const build = async (configFile: string): Promise<RaveStream> => {
-    const model = await ModelConfig.fromUrl(anira, new URL(configFile, site))
-    models.push(model)
-    const contract = (
-      await Contract.fromUrl(anira, new URL('rave.contract.json', site))
-    ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
-    const pipeline = Pipeline.create(anira).addInference(model)
-    const handler = Handler.create(context, pipeline).prepare(contract)
-    handlers.push(handler)
-    pipeline.destroy()
-    contract.destroy()
-    const latency = handler.latency()
-    console.log(`${configFile}: latency ${latency} samples`)
+  const models = [
+    await ModelConfig.fromUrl(anira, new URL('funk-drums.model.json', site)),
+    await ModelConfig.fromUrl(anira, new URL('djembe.model.json', site)),
+  ]
+  const contract = await Contract.fromUrl(anira, new URL('rave.contract.json', site))
 
-    // 4. The handler's audio node: mono in and out.
-    const audioNode = await handler.createAudioNode(audioContext, {
-      waitMs,
+  const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
+    // 4. The geometry, measured on the running context: one render quantum per call, blocks up
+    //    to the burst it renders back to back, so the latency each handler reports covers it.
+    const geometry = await measureRenderGeometry(audioContext)
+    contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
+
+    // 5. One handler per model, both prepared under the contract (each copies it), and its
+    //    audio node: mono in and out. An offline render waits for its inferences: the pool
+    //    first.
+    const handlers = models.map((model) => {
+      const pipeline = Pipeline.create(anira).addInference(model)
+      const handler = Handler.create(context, pipeline).prepare(contract)
+      pipeline.destroy()
+      return handler
     })
-    return { audioNode, latency }
-  }
-  const funk = await build('funk-drums.model.json')
-  const djembe = await build('djembe.model.json')
+    if (waitMs > 0) await context.ready()
+    const [funk, djembe] = await Promise.all(
+      handlers.map(async (handler): Promise<RaveStream> => {
+        const audioNode = await handler.createAudioNode(audioContext, { waitMs })
+        return { audioNode, latency: () => handler.latency() }
+      })
+    )
+    const latency = () => Math.max(funk.latency(), djembe.latency())
+    console.log(`latency: ${funk.latency()} and ${djembe.latency()} samples`)
 
-  // 5. The teardown, in reverse: the nodes stop calling their handlers first.
-  const teardown = () => {
-    for (const { audioNode } of [funk, djembe]) {
-      audioNode.node.disconnect()
-      audioNode.destroy()
+    // 6. After an output-device change: measure with the probe, re-prepare both running nodes.
+    const remeasure = async () => {
+      const g = await measureRenderGeometry(audioContext, { probe: true })
+      contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      for (const { audioNode } of [funk, djembe]) audioNode.prepare(contract)
+      console.log(`latency: ${funk.latency()} and ${djembe.latency()} samples`)
     }
-    for (const handler of handlers) handler.destroy()
-    for (const model of models) model.destroy()
-    context.destroy()
-    stopLogPump()
+
+    // 7. The teardown, in reverse: the nodes stop calling their handlers first.
+    const teardown = () => {
+      for (const { audioNode } of [funk, djembe]) {
+        audioNode.node.disconnect()
+        audioNode.destroy()
+      }
+      for (const handler of handlers) handler.destroy()
+      contract.destroy()
+      for (const model of models) model.destroy()
+      context.destroy()
+      stopLogPump()
+    }
+    return { funk, djembe, latency, remeasure, teardown }
   }
-  return { anira, context, funk, djembe, teardown }
+  return { anira, context, start }
 }

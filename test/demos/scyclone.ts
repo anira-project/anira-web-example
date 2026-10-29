@@ -1,9 +1,9 @@
-// RAVE: Funk & Djembe, offline: the demo's chain (createScyclone) on its context's pool, one
+// RAVE: Funk & Djembe, offline: the demo's chain (loadScyclone + start) on its context's pool, one
 // tone into both models' nodes, the funk model on channel 0 of the render, the
 // djembe model on channel 1. RAVE samples noise inside the model, so there is no exact oracle:
 // each stream must be finite, silent for the handler's latency (nothing delivered yet), then
 // carry audio that is the model's and not the miss policy's bypassed input.
-import { createScyclone } from '../../src/scyclone/setup'
+import { loadScyclone } from '../../src/scyclone/setup'
 import { energy, sine, type Checks } from '../common'
 
 const RATE = 48000
@@ -16,7 +16,9 @@ export const run = async (): Promise<Checks> => {
 
   const length = WINDOW * WINDOWS
   const audio = new OfflineAudioContext(2, length, RATE)
-  const demo = await createScyclone(audio, { waitMs: 3000 })
+  const loaded = await loadScyclone()
+  const chain = await loaded.start(audio, { waitMs: 3000 })
+  const demo = { ...loaded, ...chain, latency: chain.latency() }
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()
@@ -41,7 +43,7 @@ export const run = async (): Promise<Checks> => {
     [1, 'djembe', demo.djembe],
   ] as const) {
     const out = rendered.getChannelData(c)
-    const { latency } = stream
+    const latency = stream.latency()
     const head = out.subarray(0, Math.min(latency, out.length))
     const tail = out.subarray(latency)
     let bypassed = 0
