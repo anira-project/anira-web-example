@@ -1,0 +1,24 @@
+{
+  "models": [
+    { "engine": "onnxruntime", "path": "steerable-nafx-2_blocks-libtorch-dynamic.onnx" }
+  ],
+  "inputs": [
+    {
+      "name": "audio_in",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 1156]],
+      "window": { "min": 1156, "max": 1156 },
+      "overlap": 132
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio_out",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 1024]],
+      "window": { "min": 1024, "max": 1024 }
+    }
+  ]
+}

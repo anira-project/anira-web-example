@@ -24,9 +24,10 @@ export default defineConfig({
       ],
     }),
   ],
-  // The package as it is: the dev server must not pre-bundle it (its module's glue loads itself
-  // into the inference Workers and the audio worklet).
-  optimizeDeps: { exclude: ['@anira-project/anira'] },
+  // The packages as they are: the dev server must not pre-bundle them (anira's module glue loads
+  // itself into the inference Workers and the audio worklet; onnxruntime-web, which the
+  // Steerable-NAFX check runs as its oracle, loads its own wasm by URL).
+  optimizeDeps: { exclude: ['@anira-project/anira', 'onnxruntime-web'] },
   build: {
     target: 'esnext',
     assetsInlineLimit: 0, // Never inline WASM files
@@ -36,6 +37,7 @@ export default defineConfig({
         'simple-gain-stereo': './simple-gain-stereo.html',
         'onnx-runtime-web-backend': './onnx-runtime-web-backend.html',
         'pre-post-processors': './pre-post-processors.html',
+        'steerable-nafx': './steerable-nafx.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },

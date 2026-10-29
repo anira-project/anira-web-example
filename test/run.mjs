@@ -24,13 +24,20 @@ const configFile = path.join(root, 'vite.config.ts')
 const outDir = path.join(root, 'test/dist')
 
 // The check modules of test/check.ts and the demo pages, by the name the site gives them.
-const CHECKS = ['smoke', 'simple-gain-stereo', 'onnxweb-backend', 'pre-post-processors']
+const CHECKS = [
+  'smoke',
+  'simple-gain-stereo',
+  'onnxweb-backend',
+  'pre-post-processors',
+  'steerable-nafx',
+]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
 const DEMOS = [
   'simple-gain-stereo.html',
   'onnx-runtime-web-backend.html',
   'pre-post-processors.html',
+  'steerable-nafx.html',
 ]
 
 const types = {
@@ -245,8 +252,11 @@ const runPage = async (browser, base, pathname, demo) => {
           { timeout: 10000 }
         )
         counted &&= (await workers()) === expected
+        // A new Worker fetches and compiles the module first; one stopped before it is in its
+        // loop is terminated mid-fetch, which its glue reports as console errors ("wasm
+        // streaming compile failed"). Give each one time to boot, as a person clicking would.
+        if (button === '#add-worker') await page.waitForTimeout(3000)
       }
-      await page.waitForTimeout(500)
       if (counted)
         console.log('ok: + / − Worker start and stop inference threads (2, 1, 0, 1)')
       else fail('the worker count did not follow + / − Worker')
