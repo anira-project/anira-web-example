@@ -49,13 +49,12 @@ export async function createOnnxRuntimeWebBackend(
   //    imports the worker module first: the engine is defined there, not here.
   const context = Context.create(anira, { workerModule })
 
-  // 3. The configs. The model entry names the engine by its id; the engine fetches the .onnx
-  //    itself, in each Worker's init, so the loader attaches nothing (fetchModel).
+  // 3. The configs. The model entry names the engine by its id and the .onnx beside the config,
+  //    which fromUrl fetches once and attaches: every Worker's engine reads those bytes.
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const model = await ModelConfig.fromUrl(
     anira,
-    new URL('simple-gain-stereo-ort-web.model.json', site),
-    { fetchModel: () => false }
+    new URL('simple-gain-stereo-ort-web.model.json', site)
   )
   const contract = (
     await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
