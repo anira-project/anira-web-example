@@ -38,6 +38,7 @@ export default defineConfig({
         'onnx-runtime-web-backend': './onnx-runtime-web-backend.html',
         'pre-post-processors': './pre-post-processors.html',
         'steerable-nafx': './steerable-nafx.html',
+        'streaming-gain-stereo': './streaming-gain-stereo.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },

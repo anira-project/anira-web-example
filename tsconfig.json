@@ -26,7 +26,6 @@
   // The 2.x demos not ported to anira 3 yet: each leaves this list with its port.
   "exclude": [
     "test/dist",
-    "src/streaming-gain-stereo",
     "src/js-callback",
     "src/js-copying",
     "src/guitar-lstm",

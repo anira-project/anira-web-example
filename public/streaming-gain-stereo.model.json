@@ -1,0 +1,35 @@
+{
+  "models": [{ "engine": "onnxruntime", "path": "streaming-gain-stereo.onnx" }],
+  "inputs": [
+    {
+      "name": "audio",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 2], ["time", 512]],
+      "window": { "min": 512, "max": 512 }
+    },
+    {
+      "name": "gain",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 512]],
+      "window": { "min": 512, "max": 512 }
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio_out",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 2], ["time", 512]],
+      "window": { "min": 512, "max": 512 }
+    },
+    {
+      "name": "gain_out",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 512]],
+      "window": { "min": 512, "max": 512 }
+    }
+  ]
+}

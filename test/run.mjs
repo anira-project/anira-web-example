@@ -9,7 +9,8 @@
 // Then the same pages once more under Vite's dev server, which serves the linked package
 // (file:../anira/web) from outside the project root. Live audio is not observable headless: the
 // demo pages are smoke-run only, by ear is for a person.
-// usage: node test/run.mjs [chromium|firefox|all] [build|dev|both]
+// usage: node test/run.mjs [chromium|firefox|all] [build|dev|both] [name,...]
+//   the names (a check's or a page's, e.g. steerable-nafx or index.html) run those alone.
 //   PLAYWRIGHT_BROWSERS_PATH points at the installed browsers (npx playwright install chromium
 //   firefox). Exit code 0 when every check passed.
 import fs from 'node:fs'
@@ -30,6 +31,7 @@ const CHECKS = [
   'onnxweb-backend',
   'pre-post-processors',
   'steerable-nafx',
+  'streaming-gain-stereo',
 ]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
@@ -38,6 +40,7 @@ const DEMOS = [
   'onnx-runtime-web-backend.html',
   'pre-post-processors.html',
   'steerable-nafx.html',
+  'streaming-gain-stereo.html',
 ]
 
 const types = {
@@ -89,6 +92,8 @@ const browserArg = process.argv[2] ?? 'all'
 const modeArg = process.argv[3] ?? 'both'
 const browsers = browserArg === 'all' ? ['chromium', 'firefox'] : [browserArg]
 const modes = modeArg === 'both' ? ['build', 'dev'] : [modeArg]
+const only = process.argv[4]?.split(',')
+const selected = (name) => !only || only.includes(name)
 
 if (modes.includes('build')) {
   await build({
@@ -283,11 +288,11 @@ for (const name of browsers) {
     for (const mode of modes) {
       const server = mode === 'build' ? await serveStatic() : await serveDev()
       try {
-        for (const check of CHECKS) {
+        for (const check of CHECKS.filter(selected)) {
           console.log(`-- ${name} ${mode}: check ${check}`)
           await runCheck(browser, server.url, check)
         }
-        for (const pathname of [...PAGES, ...DEMOS]) {
+        for (const pathname of [...PAGES, ...DEMOS].filter(selected)) {
           console.log(`-- ${name} ${mode}: ${pathname}`)
           await runPage(browser, server.url, pathname, DEMOS.includes(pathname))
         }

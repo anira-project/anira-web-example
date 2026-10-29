@@ -8,6 +8,7 @@ const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
   'onnxweb-backend': () => import('./demos/onnxweb-backend'),
   'pre-post-processors': () => import('./demos/pre-post-processors'),
   'steerable-nafx': () => import('./demos/steerable-nafx'),
+  'streaming-gain-stereo': () => import('./demos/streaming-gain-stereo'),
 }
 
 type Result = { checks: Checks } | { error: string }
