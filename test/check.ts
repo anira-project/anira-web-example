@@ -1,0 +1,35 @@
+// The check page (check.html?check=<name>): runs one check module and leaves its verdict in
+// window.anira_test_result for test/run.mjs.
+import type { Checks } from './common'
+
+const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
+  smoke: () => import('./smoke/check'),
+}
+
+type Result = { checks: Checks } | { error: string }
+
+declare global {
+  interface Window {
+    anira_test_result?: Result
+  }
+}
+
+const run = async (): Promise<Result> => {
+  const name = new URLSearchParams(location.search).get('check') ?? ''
+  const load = modules[name]
+  if (!load)
+    throw new Error(`no check '${name}': one of ${Object.keys(modules).join(', ')}`)
+  const checks: Checks = [
+    { ok: crossOriginIsolated, what: 'the page is cross-origin isolated (COOP/COEP)' },
+  ]
+  checks.push(...(await (await load()).run()))
+  return { checks }
+}
+
+run()
+  .then((result) => (window.anira_test_result = result))
+  .catch((error: unknown) => {
+    window.anira_test_result = {
+      error: error instanceof Error ? `${error}\n${error.stack ?? ''}` : String(error),
+    }
+  })

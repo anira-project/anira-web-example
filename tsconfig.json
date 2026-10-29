@@ -22,5 +22,20 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src", "test"],
+  // The 2.x demos not ported to anira 3 yet: each leaves this list with its port.
+  "exclude": [
+    "test/dist",
+    "src/utils/setupDemoUI.ts",
+    "src/simple-gain-stereo",
+    "src/streaming-gain-stereo",
+    "src/js-callback",
+    "src/onnxweb-backend",
+    "src/js-copying",
+    "src/pre-post-processors",
+    "src/steerable-nafx",
+    "src/guitar-lstm",
+    "src/scyclone",
+    "src/misc"
+  ]
 }
