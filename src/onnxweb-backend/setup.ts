@@ -8,7 +8,8 @@ import {
   renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-import { ONNXRUNTIME_WEB_ENGINE_ID } from '@anira-project/anira/engines/onnxruntime-web'
+// The engine's id from the root entry: naming the engine bundles no onnxruntime-web here.
+import { ONNXRUNTIME_WEB_ENGINE_ID } from '@anira-project/anira'
 // The worker module, bundled by Vite into one self-contained ES module; its URL.
 import workerModule from './worker.ts?worker&url'
 
