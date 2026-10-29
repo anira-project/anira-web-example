@@ -10,7 +10,7 @@ Two [RAVE](https://github.com/acids-ircam/RAVE) neural synthesis models — one 
 
 | Block | Implementation |
 |---|---|
-| RAVE inference (×2) | Two handlers on one context, each a `[1, 1, 16384]` ONNX model (`funk-drums.model.json`, `djembe.model.json`, one `rave.contract.json`) with its own audio node; the context's default pool runs them in parallel when it has two or more threads |
+| RAVE inference (×2) | Two handlers on one context, each a `[1, 1, 16384]` ONNX model (`funk-drums.model.json`, `djembe.model.json`, one `rave.contract.json`) with its own audio node; each config loads one instance of its model (`"max_instances": 1`), and the context's default pool runs the two in parallel when it has two or more threads |
 | Stereo → mono downmix | `inputGain` GainNode with `channelCount=1`, `channelInterpretation='speakers'` |
 | Fade crossfade | `fadeGain1` / `fadeGain2` with gains summing to 1 |
 | Master dry/wet crossfade | `dryGain` / `wetGain` with gains summing to 1, both connected to `destination` |

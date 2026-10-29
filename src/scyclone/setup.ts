@@ -50,7 +50,12 @@ export async function createScyclone(
   const context = Context.create(anira)
 
   // 3. One handler per model config, both under the same contract file: 341.3 ms per inference
-  //    (16384 samples at 48 kHz), 2 warm-up runs; the geometry is the render quantum.
+  //    (16384 samples at 48 kHz), 2 warm-up runs; the geometry is the render quantum. Each
+  //    model config sets "max_instances": 1, one loaded copy of the model. The default is one
+  //    instance per pool thread, and the default pool is half the cores (16 Workers in Chromium
+  //    and 8 in Firefox on a 32-core machine): 8 or more instances of the two 16 MB RAVE models
+  //    ran out of the module's 512 MiB memory (Aborted(OOM)), 6 or fewer did not. With one
+  //    instance each, two of the pool's threads run the two models in parallel.
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const handlers: Handler[] = []
   const models: ModelConfig[] = []
