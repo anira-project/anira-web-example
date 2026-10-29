@@ -15,9 +15,9 @@ context's rate. The gain is an AudioParam of the handler's audio node,
 whose render callback hands the model each quantum's value. No stage,
 no JavaScript engine, no worker module.
 
-The context has no pool of its own: the page starts and stops the
-inference threads (each a Wasm Worker) with the **+ / − Worker**
-buttons, through the C entries of `anira_inference_thread_*`.
+The context runs its default pool of inference threads, each a Wasm
+Worker on the module's memory; the page is ready once they are in
+their loops (`context.ready()`).
 
 If you want to follow the source step by step, the
 [Basic Usage guide](https://anira-project.github.io/anira/web-api/basic_usage.html) walks through

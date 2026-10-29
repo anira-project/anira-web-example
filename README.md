@@ -43,7 +43,7 @@ node test/run.mjs chromium build steerable-nafx,steerable-nafx.html   # a subset
 `test/run.mjs` builds the site with the check page `test/check.html`, serves it with COOP/COEP and opens, in headless Chromium and Firefox, built and under the dev server:
 
 - every **check** (`test/check.html?check=<demo>`): the demo's own chain (its `setup.ts`) rendered through an `OfflineAudioContext` and its numbers checked — the gain demos against `input × gain`, the passthrough engines against the input, Steerable-NAFX and GuitarLSTM against the same model run over the whole signal by `onnxruntime-web` on the page, RAVE (which samples noise) for finite, latency-aligned model output;
-- every **page**: it gets ready, plays after a click (the live output measured on an `AnalyserNode` tap: not silent, silent with the gain at 0), and `+ / − Worker` count up and down, with no console error. Headless Firefox here starts no `AudioContext` (no sound server), so it skips the playing steps.
+- every **page**: it gets ready (its context's default pool in its loops; JS Callback's `+ / − Worker` count up and down), plays after a click (the live output measured on an `AnalyserNode` tap: not silent, silent with the gain at 0), with no console error. Headless Firefox here starts no `AudioContext` (no sound server), so it skips the playing steps.
 
 What a person checks by ear: each page in Chrome and Firefox, against the 2.x site.
 
@@ -53,15 +53,15 @@ Each demo's anira chain is its `setup.ts` (on any `BaseAudioContext`), the page 
 
 - **Simple Gain Stereo** — the stereo gain model on the module's built-in ONNX Runtime engine, from `simple-gain-stereo.model.json` and its contract; the gain is a Static input, an AudioParam of the handler's audio node.
 - **Streaming Gain Stereo** — the gain as a second Streamed input, a value per sample, driven by a Web Audio LFO into the audio node's second input (the node has one input and one output per Streamed slot).
-- **JS Callback** — a JavaScript engine (`defineEngine` in the context's worker module) that passes its inputs through, no model.
+- **JS Callback** — a JavaScript engine (`defineEngine` in the context's worker module) that passes its inputs through, no model; the one demo that starts and stops its own inference threads (`+ / − Worker`).
 - **ONNX Runtime Web Backend** — the stereo gain model on the package's ONNX Runtime Web engine, defined in the worker module and initialised in every inference Worker.
 - **JS Copying** — a class-based JavaScript engine (`src/misc/JSCopyEngine.ts`) copying sample by sample: the template for wrapping another runtime.
 - **PrePostProcessors** — a JavaScript stage in the audio worklet that clamps the gain to 1.0 in `pre_process`.
 - **Steerable-NAFX (CNN)** — a CNN amp model whose receptive field is the model config's declared window and `overlap` (132): no stage, no worklet module.
 - **GuitarLSTM (HybridNN)** — an LSTM amp model on a batch of 2048 overlapping 150-sample windows: the config declares the hop and the history, a JavaScript stage unfolds the batch with one `anira_ring_pop_windows` call.
-- **RAVE: Funk & Djembe** — two RAVE models, two handlers on one context, two inference threads, with a latency-aligned dry path.
+- **RAVE: Funk & Djembe** — two RAVE models, two handlers on one context (run in parallel by a pool of two or more threads), with a latency-aligned dry path.
 
-The `+ / − Worker` buttons start and stop inference threads: each context is created without a pool (`threads: 0`) and the page runs its own `anira_inference_thread_*` threads (`src/utils/inferenceThreads.ts`), because a pool's size is fixed when it is created.
+Every demo but one creates its context with the default pool of inference threads. JS Callback shows the other way: its context has no pool (`threads: 0`) and its `+ / − Worker` buttons start and stop the page's own `anira_inference_thread_*` threads (`src/utils/inferenceThreads.ts`), because a pool's size is fixed when it is created.
 
 ## What changed from the 2.x demos
 

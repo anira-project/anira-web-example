@@ -41,8 +41,9 @@ export async function createStreamingGainStereo(
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. A context without a pool: the page starts and stops the inference threads itself.
-  const context = Context.create(anira, { threads: 0 })
+  // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
+  //    engine needs no worker module.
+  const context = Context.create(anira)
 
   // 3. The configs: two Streamed inputs (audio, 2 channels; gain, 1 channel) and their two
   //    outputs, windows of 512. The contract's miss policy is zeros: a bypass needs every

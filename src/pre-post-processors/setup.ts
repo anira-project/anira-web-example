@@ -45,8 +45,9 @@ export async function createGainClamp(
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. A context without a pool: the page starts and stops the inference threads itself.
-  const context = Context.create(anira, { threads: 0 })
+  // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
+  //    engine needs no worker module.
+  const context = Context.create(anira)
 
   // 3. The configs of Simple Gain Stereo, unchanged.
   const site = new URL(import.meta.env.BASE_URL, location.href)

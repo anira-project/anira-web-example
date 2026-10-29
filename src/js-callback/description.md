@@ -19,5 +19,15 @@ that copies sample by sample, the template for wrapping another
 runtime; the [ONNX Runtime Web Backend demo](onnx-runtime-web-backend.html)
 uses the pattern to run a model with `onnxruntime-web`.
 
+This is also the one demo that **starts its own inference threads**.
+Its context is created with `threads: 0`, no pool, and the page runs
+`anira_inference_thread_*` threads itself (`inferenceThreads.ts`, the
+typed C entries on `anira.abi`), each a Wasm Worker that imports the
+worker module: **+ Worker** starts one, **− Worker** stops the newest.
+A pool's size is fixed when it is created; these threads come and go
+while the audio plays. With none, every block misses its inference and
+you hear the miss policy's fill, the bypassed input. Every other demo
+uses the context's default pool.
+
 Full pattern in
 [Custom Inference Backends](https://anira-project.github.io/anira/web-api/custom_inference_backends.html).

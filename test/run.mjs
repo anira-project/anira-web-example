@@ -4,8 +4,9 @@
 // - every check page, test/check.html?check=<name>: an OfflineAudioContext rendered through a
 //   demo's anira chain (the same function the demo page calls), its numbers checked; the verdict
 //   is window.anira_test_result;
-// - every demo page: it must reach "ready" (the loading overlay removed) and play for a moment
-//   after a click on Play, with no console error, no page error and no refused load.
+// - every demo page: it must reach "ready" (the loading overlay removed, the context's default
+//   pool in its loops; on JS Callback's page + / − Worker count up and down) and play for a
+//   moment after a click on Play, with no console error, no page error and no refused load.
 // Then the same pages once more under Vite's dev server, which serves the linked package
 // (file:../anira/web) from outside the project root. Live audio is not observable headless: the
 // demo pages are smoke-run only, by ear is for a person.
@@ -138,9 +139,11 @@ const open = async (browser, url, initScript) => {
   const page = await browser.newPage()
   if (initScript) await page.addInitScript(initScript)
   const errors = []
+  const logs = []
   page.on('console', (message) => {
     const text = message.text()
     console.log(`page ${message.type()}: ${text}`)
+    logs.push(text)
     if (
       (message.type() === 'error' && !platformSinkBelowError.test(text)) ||
       /Security Error|may not load or link to/.test(text)
@@ -159,7 +162,7 @@ const open = async (browser, url, initScript) => {
     errors.push(`request failed: ${request.url()} (${request.failure()?.errorText})`)
   )
   await page.goto(url)
-  return { page, errors, failure }
+  return { page, errors, logs, failure }
 }
 
 const runCheck = async (browser, base, name) => {
@@ -215,8 +218,44 @@ const playedRms = (page) =>
     return Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length)
   })
 
+// A page on the context's default pool logs its size once the pool is in its loops.
+const checkDefaultPool = (logs) => {
+  const logged = logs.map((text) => /^inference threads: (\d+)$/.exec(text)).find(Boolean)
+  const count = logged ? Number(logged[1]) : 0
+  if (count >= 1)
+    console.log(`ok: the context's default pool of ${count} inference threads is ready`)
+  else fail('the page did not report a ready default pool')
+}
+
+// JS Callback starts its own inference threads: one more, then down to none and back to the
+// page's own count, the badge counting.
+const checkWorkerControls = async (page) => {
+  const workers = () => page.textContent('#worker-count')
+  const initial = Number(await workers())
+  const steps = [['#add-worker', initial + 1]]
+  for (let n = initial; n >= 0; n--) steps.push(['#remove-worker', n])
+  for (let n = 1; n <= initial; n++) steps.push(['#add-worker', n])
+  const counts = steps.map(([, n]) => n).join(', ')
+  let counted = true
+  for (const [button, expected] of steps) {
+    await page.click(button)
+    await page.waitForFunction(
+      (n) => document.getElementById('worker-count')?.textContent === String(n),
+      expected,
+      { timeout: 10000 }
+    )
+    counted &&= (await workers()) === String(expected)
+    // A new Worker boots first (the module, the worker module); give it that time, as a person
+    // clicking would.
+    if (button === '#add-worker') await page.waitForTimeout(3000)
+  }
+  if (counted)
+    console.log(`ok: + / − Worker start and stop inference threads (${counts})`)
+  else fail('the worker count did not follow + / − Worker')
+}
+
 const runPage = async (browser, base, pathname, demo) => {
-  const { page, errors, failure } = await open(
+  const { page, errors, logs, failure } = await open(
     browser,
     `${base}${pathname}`,
     demo ? tapDestination : undefined
@@ -254,31 +293,8 @@ const runPage = async (browser, base, pathname, demo) => {
       } else if (!(await audioStarts(page)))
         console.log('skipped: playing (no AudioContext starts in this browser here)')
       else fail(`the demo does not play after a click on Play (the button says ${label})`)
-      // The inference threads: one more, then down to none and back to the page's own count,
-      // the badge counting.
-      const workers = () => page.textContent('#worker-count')
-      const initial = Number(await workers())
-      const steps = [['#add-worker', initial + 1]]
-      for (let n = initial; n >= 0; n--) steps.push(['#remove-worker', n])
-      for (let n = 1; n <= initial; n++) steps.push(['#add-worker', n])
-      const counts = steps.map(([, n]) => n).join(', ')
-      let counted = true
-      for (const [button, expected] of steps) {
-        await page.click(button)
-        await page.waitForFunction(
-          (n) => document.getElementById('worker-count')?.textContent === String(n),
-          expected,
-          { timeout: 10000 }
-        )
-        counted &&= (await workers()) === String(expected)
-        // A new Worker fetches and compiles the module first; one stopped before it is in its
-        // loop is terminated mid-fetch, which its glue reports as console errors ("wasm
-        // streaming compile failed"). Give each one time to boot, as a person clicking would.
-        if (button === '#add-worker') await page.waitForTimeout(3000)
-      }
-      if (counted)
-        console.log(`ok: + / − Worker start and stop inference threads (${counts})`)
-      else fail('the worker count did not follow + / − Worker')
+      if (await page.$('#add-worker')) await checkWorkerControls(page)
+      else checkDefaultPool(logs)
     } else {
       await page.waitForLoadState('networkidle')
     }

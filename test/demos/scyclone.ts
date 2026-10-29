@@ -1,10 +1,9 @@
-// RAVE: Funk & Djembe, offline: the demo's chain (createScyclone) on two of the page's inference
-// threads, one tone into both models' nodes, the funk model on channel 0 of the render, the
+// RAVE: Funk & Djembe, offline: the demo's chain (createScyclone) on its context's pool, one
+// tone into both models' nodes, the funk model on channel 0 of the render, the
 // djembe model on channel 1. RAVE samples noise inside the model, so there is no exact oracle:
 // each stream must be finite, silent for the handler's latency (nothing delivered yet), then
 // carry audio that is the model's and not the miss policy's bypassed input.
 import { createScyclone } from '../../src/scyclone/setup'
-import { InferenceThreads } from '../../src/utils/inferenceThreads'
 import { energy, sine, type Checks } from '../common'
 
 const RATE = 48000
@@ -18,10 +17,13 @@ export const run = async (): Promise<Checks> => {
   const length = WINDOW * WINDOWS
   const audio = new OfflineAudioContext(2, length, RATE)
   const demo = await createScyclone(audio, { waitMs: 3000 })
-  const threads = new InferenceThreads(demo.anira, demo.context)
-  threads.add()
-  threads.add()
-  await threads.ready()
+  // The context's default pool: an offline render waits for its inferences, so its Workers
+  // must be in their loops first.
+  await demo.context.ready()
+  check(
+    demo.context.threads >= 1,
+    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+  )
 
   const samples = sine(length, RATE, 110, 0.5)
   const input = audio.createBuffer(1, length, RATE)
@@ -56,7 +58,6 @@ export const run = async (): Promise<Checks> => {
     )
   }
 
-  await threads.removeAll()
   demo.teardown()
   check(true, 'the demo tore down (the two nodes, the handlers, the context)')
   return checks

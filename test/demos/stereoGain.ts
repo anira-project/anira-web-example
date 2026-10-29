@@ -1,11 +1,10 @@
-// The offline check of the three stereo gain demos: the demo's chain on two of the page's
-// inference threads, a stereo tone rendered through its node with the gain automated mid-render.
+// The offline check of the three stereo gain demos: the demo's chain on the context's default
+// pool, a stereo tone rendered through its node with the gain automated mid-render.
 // The model applies one gain per window of 512 samples, the value of the quantum that completes
 // the window; the change lands on a window boundary, so each output sample is its input sample
 // times the gain the model saw for its quantum (`effective` of the AudioParam's value), the
 // handler's latency later.
 import type { Anira, AniraAudioNode, Context } from '@anira-project/anira'
-import { InferenceThreads } from '../../src/utils/inferenceThreads'
 import { energy, renderOffline, sine, worstError, type Checks } from '../common'
 
 const RATE = 48000
@@ -36,11 +35,13 @@ export const checkStereoGain = async (
 
   const audio = new OfflineAudioContext(2, QUANTUM * QUANTA, RATE)
   const demo = await create(audio, { waitMs: 500 })
-  const threads = new InferenceThreads(demo.anira, demo.context)
-  threads.add()
-  threads.add()
-  await threads.ready()
-  check(true, `the page's ${threads.count} inference threads are in their loops`)
+  // The context's default pool: an offline render waits for its inferences, so its Workers
+  // must be in their loops first.
+  await demo.context.ready()
+  check(
+    demo.context.threads >= 1,
+    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+  )
 
   demo.gain.setValueAtTime(GAIN_BEFORE, 0)
   demo.gain.setValueAtTime(GAIN_AFTER, (CHANGE_QUANTUM * QUANTUM) / RATE)
@@ -66,9 +67,6 @@ export const checkStereoGain = async (
       `${worst})`
   )
 
-  await threads.remove()
-  await threads.remove()
-  check(threads.count === 0, 'both inference threads stopped and were destroyed')
   demo.teardown()
   check(true, 'the demo tore down (the node, the handler, the context)')
   return checks

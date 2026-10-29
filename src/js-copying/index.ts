@@ -1,5 +1,4 @@
 import { createJsCopying } from './setup'
-import { InferenceThreads } from '../utils/inferenceThreads'
 import { setupDemoUI } from '../utils/setupDemoUI'
 
 const audio = new Audio('vibes.mp3')
@@ -11,20 +10,16 @@ const audioContext = new AudioContext({ sampleRate: 48000 })
 
 const demo = await createJsCopying(audioContext)
 
-// One inference thread to start with: a Wasm Worker that imports the worker module (the
-// engine is defined there), then runs the context's queue.
-const threads = new InferenceThreads(demo.anira, demo.context)
-threads.add()
+// The context's pool: its Wasm Workers start once this thread yields; the page is ready once
+// they are in their loops.
+await demo.context.ready()
+console.log(`inference threads: ${demo.context.threads}`)
 
 // --------------------
 // ------ Audio -------
 // --------------------
 
-const { removeLoadingIndicator, connectAudioGraph } = setupDemoUI(
-  threads,
-  audio,
-  audioContext
-)
+const { removeLoadingIndicator, connectAudioGraph } = setupDemoUI(audio, audioContext)
 
 const sourceNode = audioContext.createMediaElementSource(audio)
 connectAudioGraph(sourceNode, demo.audioNode.node)

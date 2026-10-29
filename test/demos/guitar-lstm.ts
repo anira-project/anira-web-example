@@ -1,12 +1,11 @@
-// GuitarLSTM, offline: the demo's chain (createGuitarLstm) on one of the page's inference
-// threads, a tone rendered through its node. The oracle is the same model run by
+// GuitarLSTM, offline: the demo's chain (createGuitarLstm) on the context's default pool, a
+// tone rendered through its node. The oracle is the same model run by
 // onnxruntime-web on this page over one batch per 2048 samples, unfolded in JavaScript here:
 // element b of a batch is the 150 samples ending at that batch's sample b, with 149 zeros
 // before the signal as the first history. The streamed output must be the oracle's, the
 // handler's latency later: the worklet's stage unfolds the windows the same way.
 import * as ort from 'onnxruntime-web/wasm'
 import { createGuitarLstm } from '../../src/guitar-lstm/setup'
-import { InferenceThreads } from '../../src/utils/inferenceThreads'
 import { energy, renderOffline, sine, type Checks } from '../common'
 
 const RATE = 44100
@@ -44,9 +43,13 @@ export const run = async (): Promise<Checks> => {
 
   const audio = new OfflineAudioContext(1, QUANTUM * QUANTA, RATE)
   const demo = await createGuitarLstm(audio, { waitMs: 1000 })
-  const threads = new InferenceThreads(demo.anira, demo.context)
-  threads.add()
-  await threads.ready()
+  // The context's default pool: an offline render waits for its inferences, so its Workers
+  // must be in their loops first.
+  await demo.context.ready()
+  check(
+    demo.context.threads >= 1,
+    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+  )
 
   const samples = sine(QUANTUM * QUANTA, RATE, 220, 0.5)
   const [rendered] = await renderOffline(audio, demo.audioNode.node, [samples])
@@ -72,7 +75,6 @@ export const run = async (): Promise<Checks> => {
       `${peak.toFixed(3)})`
   )
 
-  await threads.remove()
   demo.teardown()
   check(true, 'the demo tore down (the node, the handler, the context)')
   return checks

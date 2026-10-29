@@ -2,7 +2,6 @@ import sourceCode from './index.ts?raw'
 import setupSource from './setup.ts?raw'
 import modelJson from '../../public/simple-gain-stereo.model.json?raw'
 import contractJson from '../../public/simple-gain-stereo.contract.json?raw'
-import threadsSource from '../utils/inferenceThreads.ts?raw'
 import demoUISource from '../utils/setupDemoUI.ts?raw'
 import { renderSourceCode } from '../utils/renderSourceCode'
 import { renderDescription } from '../utils/renderDescription'
@@ -13,7 +12,6 @@ renderSourceCode(document.getElementById('source-code-container')!, [
   { name: 'index.ts', code: sourceCode },
   { name: 'simple-gain-stereo.model.json', code: modelJson, language: 'json' },
   { name: 'simple-gain-stereo.contract.json', code: contractJson, language: 'json' },
-  { name: 'inferenceThreads.ts', code: threadsSource },
   { name: 'setupDemoUI.ts', code: demoUISource },
 ])
 

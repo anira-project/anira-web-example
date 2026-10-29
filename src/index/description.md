@@ -16,11 +16,10 @@ Each demo page exposes the same controls:
 - **Play / Pause** — start or stop the audio source.
 - **Dry / Wet** — toggle between the unprocessed (dry) audio and the
   model-processed (wet) signal.
-- **+ Worker / − Worker** — start or stop inference threads. Each one is a
-  Wasm Worker that anira runs on the module's memory, taking inferences from
-  the shared queue; start more if a single one can't keep up. With none, every
-  block misses its inference: you hear the miss policy's fill (the bypassed
-  input) and the console logs warnings.
+Every demo runs its context's default pool of inference threads, Wasm
+Workers that anira starts on the module's memory. The
+[JS Callback](js-callback.html) demo instead starts and stops its own with
+**+ Worker / − Worker**.
 
 The source code for setting up each demo is presented below the controls on
 the demo page.

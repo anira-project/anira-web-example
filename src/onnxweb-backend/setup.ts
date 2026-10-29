@@ -45,9 +45,9 @@ export async function createOnnxRuntimeWebBackend(
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. A context without a pool (the page starts its inference threads), whose every inference
-  //    Worker imports the worker module first: the engine is defined there, not here.
-  const context = Context.create(anira, { threads: 0, workerModule })
+  // 2. A context with the default pool of inference threads (Wasm Workers), each of which
+  //    imports the worker module first: the engine is defined there, not here.
+  const context = Context.create(anira, { workerModule })
 
   // 3. The configs. The model entry names the engine by its id; the engine fetches the .onnx
   //    itself, in each Worker's init, so the loader attaches nothing (fetchModel).

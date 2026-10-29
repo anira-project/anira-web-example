@@ -2,30 +2,21 @@ import type { InferenceThreads } from './inferenceThreads'
 
 /**
  * Wires up the demo UI controls that already exist in the HTML.
- * Enables buttons and attaches event handlers for audio playback and the inference threads
- * (each a Wasm Worker: + Worker starts one, − Worker stops the newest).
+ * Enables buttons and attaches event handlers for audio playback and, for a page that starts its
+ * own inference threads (`threads`), the + / − Worker controls (each thread a Wasm Worker:
+ * + Worker starts one, − Worker stops the newest).
  */
 export const setupDemoUI = (
-  threads: InferenceThreads,
   audio?: HTMLAudioElement,
-  audioContext?: AudioContext
+  audioContext?: AudioContext,
+  threads?: InferenceThreads
 ) => {
   const audioToggleButton = document.getElementById('audio-toggle') as HTMLButtonElement
   audioToggleButton.disabled = false
 
-  const workerCountElement = document.getElementById('worker-count')!
-  const addWorkerButton = document.getElementById('add-worker') as HTMLButtonElement
-  const removeWorkerButton = document.getElementById('remove-worker') as HTMLButtonElement
   const dryWetToggleButton = document.getElementById(
     'dry-wet-toggle'
   ) as HTMLButtonElement | null
-
-  addWorkerButton.disabled = false
-
-  const updateWorkerCount = () => {
-    workerCountElement.textContent = threads.count.toString()
-    removeWorkerButton.disabled = threads.count === 0
-  }
 
   if (audio) {
     audio.loop = true
@@ -95,28 +86,7 @@ export const setupDemoUI = (
     audioToggleButton.parentElement?.appendChild(fileLabel)
   }
 
-  addWorkerButton.onclick = () => {
-    try {
-      threads.add()
-      updateWorkerCount()
-      console.log('Added inference worker. Total:', threads.count)
-    } catch (error) {
-      console.error('Failed to add worker:', error)
-    }
-  }
-
-  removeWorkerButton.onclick = async () => {
-    if (threads.count === 0) {
-      console.warn('No workers to remove')
-      return
-    }
-    removeWorkerButton.disabled = true
-    await threads.remove()
-    updateWorkerCount()
-    console.log('Removed inference worker. Remaining:', threads.count)
-  }
-
-  updateWorkerCount()
+  if (threads) setupWorkerControls(threads)
 
   /**
    * Connects source → inference → destination with a parallel dry path so a
@@ -157,4 +127,41 @@ export const setupDemoUI = (
     removeLoadingIndicator: () => document.getElementById('loading-indicator')?.remove(),
     connectAudioGraph,
   }
+}
+
+/** The + / − Worker controls of a page that starts and stops its own inference threads. */
+const setupWorkerControls = (threads: InferenceThreads) => {
+  const workerCountElement = document.getElementById('worker-count')!
+  const addWorkerButton = document.getElementById('add-worker') as HTMLButtonElement
+  const removeWorkerButton = document.getElementById('remove-worker') as HTMLButtonElement
+
+  addWorkerButton.disabled = false
+
+  const updateWorkerCount = () => {
+    workerCountElement.textContent = threads.count.toString()
+    removeWorkerButton.disabled = threads.count === 0
+  }
+
+  addWorkerButton.onclick = () => {
+    try {
+      threads.add()
+      updateWorkerCount()
+      console.log('Added inference worker. Total:', threads.count)
+    } catch (error) {
+      console.error('Failed to add worker:', error)
+    }
+  }
+
+  removeWorkerButton.onclick = async () => {
+    if (threads.count === 0) {
+      console.warn('No workers to remove')
+      return
+    }
+    removeWorkerButton.disabled = true
+    await threads.remove()
+    updateWorkerCount()
+    console.log('Removed inference worker. Remaining:', threads.count)
+  }
+
+  updateWorkerCount()
 }

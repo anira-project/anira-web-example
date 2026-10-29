@@ -21,9 +21,9 @@ threads.add()
 // --------------------
 
 const { removeLoadingIndicator, connectAudioGraph } = setupDemoUI(
-  threads,
   audio,
-  audioContext
+  audioContext,
+  threads
 )
 
 const sourceNode = audioContext.createMediaElementSource(audio)

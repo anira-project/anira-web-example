@@ -2,4 +2,4 @@
 import { createJsCallback } from '../../src/js-callback/setup'
 import { checkPassthrough } from './passthrough'
 
-export const run = () => checkPassthrough(createJsCallback)
+export const run = () => checkPassthrough(createJsCallback, { ownThread: true })

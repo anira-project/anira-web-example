@@ -14,8 +14,8 @@ defines the engine under its id (`defineEngine`), and the engine's
 `init` loads onnxruntime-web's wasm module and the model in that
 Worker; `process` then runs synchronously from the Worker's loop. The
 model config names the engine by the same id, and the pipeline
-registers it (`registerEngine`). Every **+ Worker** builds one more
-engine instance and loads the model once more.
+registers it (`registerEngine`). Every Worker of the context's pool
+builds an engine instance of its own and loads the model once.
 
 The wire-up is documented in
 [Custom Inference Backends](https://anira-project.github.io/anira/web-api/custom_inference_backends.html).

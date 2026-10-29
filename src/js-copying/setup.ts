@@ -40,9 +40,9 @@ export async function createJsCopying(
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. A context without a pool (the page starts its inference threads), each of whose Workers
-  //    imports the worker module, where the engine is defined.
-  const context = Context.create(anira, { threads: 0, workerModule })
+  // 2. A context with the default pool of inference threads (Wasm Workers), each of which
+  //    imports the worker module first: the engine is defined there, not here.
+  const context = Context.create(anira, { workerModule })
 
   // 3. The configs: the model entry names the engine (and a path, which an entry requires and
   //    nothing opens: fetchModel attaches no file); the contract is Simple Gain Stereo's.

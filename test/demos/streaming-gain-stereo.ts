@@ -1,9 +1,8 @@
-// Streaming Gain Stereo, offline: the demo's chain (createStreamingGainStereo) on one of the
-// page's inference threads, a stereo tone into the node's first input and a 3 Hz gain signal into
+// Streaming Gain Stereo, offline: the demo's chain (createStreamingGainStereo) on the
+// context's default pool, a stereo tone into the node's first input and a 3 Hz gain signal into
 // its second. Each output sample is its input sample times the gain sample of the same instant,
 // the handler's latency later; the second output plays the model's copy of the gain.
 import { createStreamingGainStereo } from '../../src/streaming-gain-stereo/setup'
-import { InferenceThreads } from '../../src/utils/inferenceThreads'
 import { energy, sine, worstError, type Checks } from '../common'
 
 const RATE = 48000
@@ -16,9 +15,13 @@ export const run = async (): Promise<Checks> => {
 
   const audio = new OfflineAudioContext(3, QUANTUM * QUANTA, RATE)
   const demo = await createStreamingGainStereo(audio, { waitMs: 500 })
-  const threads = new InferenceThreads(demo.anira, demo.context)
-  threads.add()
-  await threads.ready()
+  // The context's default pool: an offline render waits for its inferences, so its Workers
+  // must be in their loops first.
+  await demo.context.ready()
+  check(
+    demo.context.threads >= 1,
+    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+  )
 
   const length = QUANTUM * QUANTA
   const left = sine(length, RATE, 440)
@@ -67,7 +70,6 @@ export const run = async (): Promise<Checks> => {
     `the second output plays the model's copy of the gain stream (worst error ${worstGain})`
   )
 
-  await threads.remove()
   demo.teardown()
   check(true, 'the demo tore down (the node, the handler, the context)')
   return checks

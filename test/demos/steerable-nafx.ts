@@ -1,12 +1,11 @@
-// Steerable-NAFX, offline: the demo's chain (createSteerableNafx) on one of the page's inference
-// threads, a tone rendered through its node. The oracle is the same model run once over the whole
+// Steerable-NAFX, offline: the demo's chain (createSteerableNafx) on the context's default
+// pool, a tone rendered through its node. The oracle is the same model run once over the whole
 // signal by onnxruntime-web on this page: the export's time axis is dynamic, and 132 zeros ahead
 // of the signal are the history the declared overlap starts from. The streamed output must be
 // that run's output, the handler's latency later: the declared window and overlap do what the
 // 2.x JavaScript windowing did.
 import * as ort from 'onnxruntime-web/wasm'
 import { createSteerableNafx } from '../../src/steerable-nafx/setup'
-import { InferenceThreads } from '../../src/utils/inferenceThreads'
 import { energy, renderOffline, sine, type Checks } from '../common'
 
 const RATE = 44100
@@ -40,9 +39,13 @@ export const run = async (): Promise<Checks> => {
 
   const audio = new OfflineAudioContext(1, QUANTUM * QUANTA, RATE)
   const demo = await createSteerableNafx(audio, { waitMs: 500 })
-  const threads = new InferenceThreads(demo.anira, demo.context)
-  threads.add()
-  await threads.ready()
+  // The context's default pool: an offline render waits for its inferences, so its Workers
+  // must be in their loops first.
+  await demo.context.ready()
+  check(
+    demo.context.threads >= 1,
+    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+  )
 
   const samples = sine(QUANTUM * QUANTA, RATE, 220, 0.5)
   const [rendered] = await renderOffline(audio, demo.audioNode.node, [samples])
@@ -69,7 +72,6 @@ export const run = async (): Promise<Checks> => {
       `later (worst error ${worst}, peak ${peak.toFixed(3)})`
   )
 
-  await threads.remove()
   demo.teardown()
   check(true, 'the demo tore down (the node, the handler, the context)')
   return checks

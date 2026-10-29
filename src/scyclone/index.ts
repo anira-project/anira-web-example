@@ -1,6 +1,5 @@
 import { createScyclone } from './setup'
 import { setupControls } from './controls'
-import { InferenceThreads } from '../utils/inferenceThreads'
 import { setupDemoUI } from '../utils/setupDemoUI'
 
 // -------------------------------------------------------------------------
@@ -12,12 +11,12 @@ const audioContext = new AudioContext({ sampleRate: 48000 })
 
 const demo = await createScyclone(audioContext)
 
-// Two inference threads so the two RAVE models can run in parallel.
-const threads = new InferenceThreads(demo.anira, demo.context)
-threads.add()
-threads.add()
+// The context's pool: its Wasm Workers start once this thread yields; the page is ready once
+// they are in their loops.
+await demo.context.ready()
+console.log(`inference threads: ${demo.context.threads}`)
 
-const { removeLoadingIndicator } = setupDemoUI(threads, audio, audioContext)
+const { removeLoadingIndicator } = setupDemoUI(audio, audioContext)
 
 // -------------------------------------------------------------------------
 // Audio graph

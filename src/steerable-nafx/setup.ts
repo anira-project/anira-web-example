@@ -38,8 +38,9 @@ export async function createSteerableNafx(
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. A context without a pool: the page starts and stops the inference threads itself.
-  const context = Context.create(anira, { threads: 0 })
+  // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
+  //    engine needs no worker module.
+  const context = Context.create(anira)
 
   // 3. The configs: the model's window and overlap (public/steerable-nafx.model.json), and the
   //    Hard contract: 23.2 ms per inference (1024 samples at 44.1 kHz, the 2.x real-time

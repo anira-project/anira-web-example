@@ -30,8 +30,8 @@ export type Scyclone = {
  * The demo's anira chain on `audioContext`: two RAVE models (funk drums, djembe), each a handler
  * of its own on one context, mono, on the built-in ONNX Runtime engine, up to their two audio
  * nodes (the page builds the mix around them). Both models take and yield blocks of 16384
- * samples at 48 kHz. With two inference threads the two run in parallel. `waitMs` lets each
- * quantum wait for its inference (an offline render).
+ * samples at 48 kHz. With two or more inference threads the two run in parallel. `waitMs` lets
+ * each quantum wait for its inference (an offline render).
  */
 export async function createScyclone(
   audioContext: BaseAudioContext,
@@ -42,8 +42,12 @@ export async function createScyclone(
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. One context for both handlers, without a pool: the page starts its inference threads.
-  const context = Context.create(anira, { threads: 0 })
+  // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
+  //    engine needs no worker module. Two threads run the two models in parallel; one runs
+  //    them in turn, which fits the budget where an inference takes under half of it (measured
+  //    on one thread: about 17 ms per inference in Chromium, 146 ms in Firefox, against
+  //    341.3 ms). A slower machine with one thread misses.
+  const context = Context.create(anira)
 
   // 3. One handler per model config, both under the same contract file: 341.3 ms per inference
   //    (16384 samples at 48 kHz), 2 warm-up runs; the geometry is the render quantum.
