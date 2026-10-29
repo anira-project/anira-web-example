@@ -1,0 +1,21 @@
+{
+  "models": [{ "engine": "onnxruntime", "path": "funk_drums.onnx" }],
+  "inputs": [
+    {
+      "name": "audio_in",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 16384]],
+      "window": { "min": 16384, "max": 16384 }
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio_out",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 16384]],
+      "window": { "min": 16384, "max": 16384 }
+    }
+  ]
+}

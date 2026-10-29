@@ -42,6 +42,7 @@ export default defineConfig({
         'js-callback': './js-callback.html',
         'js-copying': './js-copying.html',
         'guitar-lstm': './guitar-lstm.html',
+        scyclone: './scyclone.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },

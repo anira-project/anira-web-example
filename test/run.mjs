@@ -35,6 +35,7 @@ const CHECKS = [
   'js-callback',
   'js-copying',
   'guitar-lstm',
+  'scyclone',
 ]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
@@ -47,6 +48,7 @@ const DEMOS = [
   'js-callback.html',
   'js-copying.html',
   'guitar-lstm.html',
+  'scyclone.html',
 ]
 
 const types = {
@@ -252,30 +254,30 @@ const runPage = async (browser, base, pathname, demo) => {
       } else if (!(await audioStarts(page)))
         console.log('skipped: playing (no AudioContext starts in this browser here)')
       else fail(`the demo does not play after a click on Play (the button says ${label})`)
-      // The inference threads: one more, then down to none and back to one, the badge counting.
+      // The inference threads: one more, then down to none and back to the page's own count,
+      // the badge counting.
       const workers = () => page.textContent('#worker-count')
-      const steps = [
-        ['#add-worker', '2'],
-        ['#remove-worker', '1'],
-        ['#remove-worker', '0'],
-        ['#add-worker', '1'],
-      ]
+      const initial = Number(await workers())
+      const steps = [['#add-worker', initial + 1]]
+      for (let n = initial; n >= 0; n--) steps.push(['#remove-worker', n])
+      for (let n = 1; n <= initial; n++) steps.push(['#add-worker', n])
+      const counts = steps.map(([, n]) => n).join(', ')
       let counted = true
       for (const [button, expected] of steps) {
         await page.click(button)
         await page.waitForFunction(
-          (n) => document.getElementById('worker-count')?.textContent === n,
+          (n) => document.getElementById('worker-count')?.textContent === String(n),
           expected,
           { timeout: 10000 }
         )
-        counted &&= (await workers()) === expected
+        counted &&= (await workers()) === String(expected)
         // A new Worker fetches and compiles the module first; one stopped before it is in its
         // loop is terminated mid-fetch, which its glue reports as console errors ("wasm
         // streaming compile failed"). Give each one time to boot, as a person clicking would.
         if (button === '#add-worker') await page.waitForTimeout(3000)
       }
       if (counted)
-        console.log('ok: + / − Worker start and stop inference threads (2, 1, 0, 1)')
+        console.log(`ok: + / − Worker start and stop inference threads (${counts})`)
       else fail('the worker count did not follow + / − Worker')
     } else {
       await page.waitForLoadState('networkidle')

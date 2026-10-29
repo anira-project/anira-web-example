@@ -10,11 +10,11 @@ Two [RAVE](https://github.com/acids-ircam/RAVE) neural synthesis models — one 
 
 | Block | Implementation |
 |---|---|
-| RAVE inference (×2) | Two `AniraWeb.configureAudioWorklet` nodes, each running a `[1, 1, 16384]` ONNX model on its own inference worker |
+| RAVE inference (×2) | Two handlers on one context, each a `[1, 1, 16384]` ONNX model (`funk-drums.model.json`, `djembe.model.json`, one `rave.contract.json`) with its own audio node; two inference threads run them in parallel |
 | Stereo → mono downmix | `inputGain` GainNode with `channelCount=1`, `channelInterpretation='speakers'` |
 | Fade crossfade | `fadeGain1` / `fadeGain2` with gains summing to 1 |
 | Master dry/wet crossfade | `dryGain` / `wetGain` with gains summing to 1, both connected to `destination` |
-| Latency compensation | `dryDelay` — a `DelayNode` on the dry path matching model latency, so dry and wet stay time-aligned. The sample count is obtained via `inferenceHandler.getLatency()`, which anira derives from the `InferenceConfig` during `prepare()` ([latency model docs](https://anira-project.github.io/anira/latency.html)): it accounts for buffer-alignment adaptation between host read size and model output chunk size, plus the number of host callbacks consumed while the model is inferring (derived from `m_max_inference_time`). |
+| Latency compensation | `dryDelay` — a `DelayNode` on the dry path matching model latency, so dry and wet stay time-aligned. The sample count is the handler's `latency()`, which anira derives from the model config and the contract during `prepare()` ([latency model docs](https://anira-project.github.io/anira/latency.html)): it accounts for the alignment between the host's block and the model's 16384-sample window, plus the blocks that pass while the model is inferring (the contract's budget of 341.3 ms). |
 
 ## Notes
 

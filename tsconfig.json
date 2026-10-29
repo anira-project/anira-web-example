@@ -23,9 +23,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src", "test"],
-  // The 2.x demos not ported to anira 3 yet: each leaves this list with its port.
-  "exclude": [
-    "test/dist",
-    "src/scyclone"
-  ]
+  "exclude": ["test/dist"]
 }
