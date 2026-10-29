@@ -29,7 +29,6 @@
     "src/streaming-gain-stereo",
     "src/js-callback",
     "src/js-copying",
-    "src/pre-post-processors",
     "src/steerable-nafx",
     "src/guitar-lstm",
     "src/scyclone",

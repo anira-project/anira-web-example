@@ -1,27 +1,28 @@
 # Custom Pre/Post Processing
 
-Anira's default `PrePostProcessor` runs entirely in C++/WASM. When
-your model needs JavaScript-side preparation between blocks —
+Anira's default pre- and post-processing runs entirely in C/WASM:
+popping the input ring into the model's tensors, pushing the output.
+When your model needs JavaScript-side preparation between blocks —
 windowing, normalisation, parameter clamping, custom multi-tensor
-packing —
-[`JSPrePostProcessor`](https://anira-project.github.io/anira/web-api/reference/class/JSPrePostProcessor.html)
-routes the pre- and post-processing phases through JS callbacks
-instead.
+packing — a **JavaScript stage** takes part in those phases instead
+(`defineStage` in the realm that runs a phase, `Pipeline.addStage`).
 
-This demo is the smallest possible example: a `JSPrePostProcessor`
-subclass that **clamps the gain to `[0, 1]`** in `preProcess` before
-the C++ side reads it. Move the slider above 1.0 and you'll find the
-audio doesn't get any louder — that's the JS callback firing every
-block.
+This demo is the smallest possible example: a stage whose
+`preProcess` runs the default body and then **clamps the gain to at
+most 1.0** in the model's input tensor. Move the slider above 1.0 and
+you'll find the audio doesn't get any louder — that's the JavaScript
+stage running inside the C render callback.
 
-The override has to live on the **audio worklet thread** (where the
-real-time callback runs), so the construction is split: the main
-thread allocates a `JSPrePostProcessor`, the worklet reconstructs it
-as the subclass via `createFromPointer` and registers it with
-`this.prePostRegistry.set(prePostProcessorPtr, ppProcessor)`. See
+Under a Hard contract `preProcess` runs on the **audio thread**, in
+the audio worklet's realm, so the stage's module is loaded there
+(`workletModules` of `createAudioNode`). Its `prepare` and `unprepare`
+run on the main thread, which imports the same module: `prepare`
+allocates the tensor record `preProcess` reads the gain through, so
+the audio thread allocates nothing, and hands it over as the
+`prepared` pointer in the shared memory. See
 [Custom Pre- and Post-Processing](https://anira-project.github.io/anira/web-api/custom_pre_post_processing.html)
 for the full pattern.
 
-The [steerable-nafx](/steerable-nafx.html) and
-[guitar-lstm](/guitar-lstm.html) demos use this same mechanism for
-real windowing logic.
+The [Steerable-NAFX](steerable-nafx.html) demo needed a stage in 2.x
+for its windowing; in v3 the model config declares the window and
+its overlap instead.
