@@ -28,7 +28,6 @@
     "test/dist",
     "src/streaming-gain-stereo",
     "src/js-callback",
-    "src/onnxweb-backend",
     "src/js-copying",
     "src/pre-post-processors",
     "src/steerable-nafx",

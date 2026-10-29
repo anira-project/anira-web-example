@@ -1,14 +1,21 @@
 # ONNX Runtime Web Backend
 
-The same stereo gain plugin as
-[Simple Gain Stereo](/simple-gain-stereo.html), but inference runs
-through
-[`ONNXRuntimeWebBackend`](https://anira-project.github.io/anira/web-api/reference/class/ONNXRuntimeWebBackend.html)
-— Anira Web's second built-in engine — instead of the WASM-side ONNX
-Runtime. This backend wraps `onnxruntime-web` on the JavaScript side.
+The same stereo gain model as
+[Simple Gain Stereo](simple-gain-stereo.html), but inference runs
+through the **ONNX Runtime Web engine**
+(`@anira-project/anira/engines/onnxruntime-web`), a JavaScript engine
+that wraps `onnxruntime-web`, instead of the module's built-in ONNX
+Runtime.
 
-Two changes vs. the simple version: `ModelData` is given a URL string
-(`onnxruntime-web` fetches the model itself), and the backend is
-selected via `InferenceBackend.CUSTOM` with the backend instance
-passed to `InferenceHandler`. The wire-up is documented in the
-[basic usage guide](https://anira-project.github.io/anira/web-api/basic_usage.html#run-inference-in-javascript).
+A JavaScript engine lives in the realm that runs it: every inference
+thread is a Wasm Worker with its own globals, which imports the
+context's **worker module** (`worker.ts`) before its loop. That module
+defines the engine under its id (`defineEngine`), and the engine's
+`init` loads onnxruntime-web's wasm module and the model in that
+Worker; `process` then runs synchronously from the Worker's loop. The
+model config names the engine by the same id, and the pipeline
+registers it (`registerEngine`). Every **+ Worker** builds one more
+engine instance and loads the model once more.
+
+The wire-up is documented in
+[Custom Inference Backends](https://anira-project.github.io/anira/web-api/custom_inference_backends.html).

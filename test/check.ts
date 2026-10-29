@@ -5,6 +5,7 @@ import type { Checks } from './common'
 const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
   smoke: () => import('./smoke/check'),
   'simple-gain-stereo': () => import('./demos/simple-gain-stereo'),
+  'onnxweb-backend': () => import('./demos/onnxweb-backend'),
 }
 
 type Result = { checks: Checks } | { error: string }

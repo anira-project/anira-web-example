@@ -24,10 +24,10 @@ const configFile = path.join(root, 'vite.config.ts')
 const outDir = path.join(root, 'test/dist')
 
 // The check modules of test/check.ts and the demo pages, by the name the site gives them.
-const CHECKS = ['smoke', 'simple-gain-stereo']
+const CHECKS = ['smoke', 'simple-gain-stereo', 'onnxweb-backend']
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
-const DEMOS = ['simple-gain-stereo.html']
+const DEMOS = ['simple-gain-stereo.html', 'onnx-runtime-web-backend.html']
 
 const types = {
   '.html': 'text/html',

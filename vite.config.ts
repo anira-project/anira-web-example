@@ -34,6 +34,7 @@ export default defineConfig({
       input: {
         main: './index.html',
         'simple-gain-stereo': './simple-gain-stereo.html',
+        'onnx-runtime-web-backend': './onnx-runtime-web-backend.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },
