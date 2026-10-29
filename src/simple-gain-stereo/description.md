@@ -1,16 +1,24 @@
 # Simple Gain Stereo
 
 The smallest end-to-end Anira Web setup, and the foundation every
-other demo builds on. A stereo gain plugin running through anira's
-**WASM-side ONNX Runtime** — the default inference path that ships
-in anira's WebAssembly module.
+other demo builds on. A stereo gain model running through the
+module's **built-in ONNX Runtime** engine — the default inference
+path that ships in anira's WebAssembly module.
 
-The model has two tensors: a streamable stereo audio tensor that
-flows through the audio worklet block by block, and a non-streamable
-scalar gain value updated asynchronously from the slider in the UI.
-No custom worklet, no custom backend, no custom pre/post-processing —
-just the default everything.
+The model and its contract are the same JSON files a native host
+loads: `simple-gain-stereo.model.json` describes a streamed stereo
+audio tensor (a window of 512 samples, fed by the handler block by
+block) and a Static scalar `gain`, and names the `.onnx` file beside
+it; `simple-gain-stereo.contract.json` is the Hard contract (5 ms per
+inference, 10 warm-up runs), its geometry the render quantum at the
+context's rate. The gain is an AudioParam of the handler's audio node,
+whose render callback hands the model each quantum's value. No stage,
+no JavaScript engine, no worker module.
+
+The context has no pool of its own: the page starts and stops the
+inference threads (each a Wasm Worker) with the **+ / − Worker**
+buttons, through the C entries of `anira_inference_thread_*`.
 
 If you want to follow the source step by step, the
 [Basic Usage guide](https://anira-project.github.io/anira/web-api/basic_usage.html) walks through
-exactly this demo.
+the same six steps.

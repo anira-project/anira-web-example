@@ -1,8 +1,10 @@
 import hljs from 'highlight.js/lib/core'
 import typescript from 'highlight.js/lib/languages/typescript'
+import json from 'highlight.js/lib/languages/json'
 import 'highlight.js/styles/tokyo-night-dark.css'
 
 hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('json', json)
 
 // The line-numbers plugin expects window.hljs; assign before dynamic import
 ;(window as any).hljs = hljs

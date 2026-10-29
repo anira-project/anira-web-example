@@ -24,10 +24,10 @@ const configFile = path.join(root, 'vite.config.ts')
 const outDir = path.join(root, 'test/dist')
 
 // The check modules of test/check.ts and the demo pages, by the name the site gives them.
-const CHECKS = ['smoke']
+const CHECKS = ['smoke', 'simple-gain-stereo']
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
-const DEMOS = []
+const DEMOS = ['simple-gain-stereo.html']
 
 const types = {
   '.html': 'text/html',
@@ -103,15 +103,24 @@ const fail = (what) => {
   failed += 1
 }
 
+// anira's platform sink writes each record of warning level and above to stderr, which the
+// module's glue prints with console.error ("[warn][rt][anira.scheduler] ..."), beside the log
+// hook's console.warn of the same record: such a line is the record's level, not an error.
+const platformSinkBelowError = /^\[(warn|info|debug|trace)\]/
+
 // One page: the console and the page errors are failures, and so is a load the browser refused
 // (Firefox's "Security Error: Content at ... may not load or link to file:///...").
-const open = async (browser, url) => {
+const open = async (browser, url, initScript) => {
   const page = await browser.newPage()
+  if (initScript) await page.addInitScript(initScript)
   const errors = []
   page.on('console', (message) => {
     const text = message.text()
     console.log(`page ${message.type()}: ${text}`)
-    if (message.type() === 'error' || /Security Error|may not load or link to/.test(text))
+    if (
+      (message.type() === 'error' && !platformSinkBelowError.test(text)) ||
+      /Security Error|may not load or link to/.test(text)
+    )
       errors.push(text)
   })
   page.on('pageerror', (error) => errors.push(`page error: ${error.message}`))
@@ -140,8 +149,47 @@ const runCheck = async (browser, base, name) => {
   await page.close()
 }
 
+// Whether an AudioContext can run in this browser at all: headless Firefox without a sound server
+// never resumes one (the autoplay policy is off, see the launch), Chromium has a fake output.
+const audioStarts = (page) =>
+  page.evaluate(async () => {
+    const context = new AudioContext()
+    const timeout = new Promise((resolve) => setTimeout(resolve, 2000))
+    await Promise.race([context.resume(), timeout])
+    const running = context.state === 'running'
+    void context.close()
+    return running
+  })
+
+// A tap on what the page plays: every connection into an AudioContext's destination also feeds
+// one AnalyserNode (window.anira_test_tap), so the harness can measure the live output.
+const tapDestination = () => {
+  const connect = AudioNode.prototype.connect
+  AudioNode.prototype.connect = function (destination, ...rest) {
+    if (destination instanceof AudioDestinationNode) {
+      window.anira_test_tap ??= new AnalyserNode(destination.context, { fftSize: 4096 })
+      connect.call(this, window.anira_test_tap)
+    }
+    return connect.call(this, destination, ...rest)
+  }
+}
+
+// The RMS of the last 4096 samples the page played.
+const playedRms = (page) =>
+  page.evaluate(() => {
+    const tap = window.anira_test_tap
+    if (!tap) return 0
+    const samples = new Float32Array(tap.fftSize)
+    tap.getFloatTimeDomainData(samples)
+    return Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length)
+  })
+
 const runPage = async (browser, base, pathname, demo) => {
-  const { page, errors } = await open(browser, `${base}${pathname}`)
+  const { page, errors } = await open(
+    browser,
+    `${base}${pathname}`,
+    demo ? tapDestination : undefined
+  )
   try {
     const crossOriginIsolated = await page.evaluate(() => crossOriginIsolated)
     if (crossOriginIsolated) console.log('ok: the page is cross-origin isolated')
@@ -158,8 +206,46 @@ const runPage = async (browser, base, pathname, demo) => {
       await page.click('#audio-toggle')
       await page.waitForTimeout(2000)
       const label = await page.textContent('#audio-toggle')
-      if (label === 'Pause') console.log('ok: the demo plays after a click on Play')
+      if (label === 'Pause') {
+        console.log('ok: the demo plays after a click on Play')
+        const rms = await playedRms(page)
+        if (rms > 1e-3)
+          console.log(`ok: the page's output is not silent (RMS ${rms.toFixed(4)})`)
+        else fail(`the page's output is silent (RMS ${rms})`)
+        // A gain slider at 0 silences the model's output (the dry path is muted while wet).
+        if (await page.$('#gain-slider')) {
+          await page.fill('#gain-slider', '0')
+          await page.waitForTimeout(1000)
+          const muted = await playedRms(page)
+          if (muted < 1e-4)
+            console.log(`ok: the gain slider at 0 silences the output (RMS ${muted})`)
+          else fail(`the gain slider at 0 leaves the output at RMS ${muted}`)
+        }
+      } else if (!(await audioStarts(page)))
+        console.log('skipped: playing (no AudioContext starts in this browser here)')
       else fail(`the demo does not play after a click on Play (the button says ${label})`)
+      // The inference threads: one more, then down to none and back to one, the badge counting.
+      const workers = () => page.textContent('#worker-count')
+      const steps = [
+        ['#add-worker', '2'],
+        ['#remove-worker', '1'],
+        ['#remove-worker', '0'],
+        ['#add-worker', '1'],
+      ]
+      let counted = true
+      for (const [button, expected] of steps) {
+        await page.click(button)
+        await page.waitForFunction(
+          (n) => document.getElementById('worker-count')?.textContent === n,
+          expected,
+          { timeout: 10000 }
+        )
+        counted &&= (await workers()) === expected
+      }
+      await page.waitForTimeout(500)
+      if (counted)
+        console.log('ok: + / − Worker start and stop inference threads (2, 1, 0, 1)')
+      else fail('the worker count did not follow + / − Worker')
     } else {
       await page.waitForLoadState('networkidle')
     }
@@ -173,7 +259,12 @@ const runPage = async (browser, base, pathname, demo) => {
 for (const name of browsers) {
   const browserType = { chromium, firefox }[name]
   if (!browserType) throw new Error(`no browser '${name}': chromium, firefox or all`)
-  const browser = await browserType.launch()
+  const browser = await browserType.launch({
+    firefoxUserPrefs: {
+      'media.autoplay.default': 0,
+      'media.autoplay.block-webaudio': false,
+    },
+  })
   try {
     for (const mode of modes) {
       const server = mode === 'build' ? await serveStatic() : await serveDev()

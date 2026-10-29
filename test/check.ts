@@ -4,6 +4,7 @@ import type { Checks } from './common'
 
 const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
   smoke: () => import('./smoke/check'),
+  'simple-gain-stereo': () => import('./demos/simple-gain-stereo'),
 }
 
 type Result = { checks: Checks } | { error: string }

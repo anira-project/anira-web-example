@@ -1,14 +1,14 @@
-import type { AniraWeb } from '@anira-project/anira'
+import type { InferenceThreads } from './inferenceThreads'
 
 /**
  * Wires up the demo UI controls that already exist in the HTML.
- * Enables buttons and attaches event handlers for audio playback and worker management.
+ * Enables buttons and attaches event handlers for audio playback and the inference threads
+ * (each a Wasm Worker: + Worker starts one, − Worker stops the newest).
  */
-export const setupDemoUI = async (
-  aniraWeb: AniraWeb,
+export const setupDemoUI = (
+  threads: InferenceThreads,
   audio?: HTMLAudioElement,
-  audioContext?: AudioContext,
-  customInferenceWorkerUrl?: URL
+  audioContext?: AudioContext
 ) => {
   const audioToggleButton = document.getElementById('audio-toggle') as HTMLButtonElement
   audioToggleButton.disabled = false
@@ -23,8 +23,8 @@ export const setupDemoUI = async (
   addWorkerButton.disabled = false
 
   const updateWorkerCount = () => {
-    workerCountElement.textContent = aniraWeb.getActiveWorkers().length.toString()
-    removeWorkerButton.disabled = aniraWeb.getActiveWorkers().length === 0
+    workerCountElement.textContent = threads.count.toString()
+    removeWorkerButton.disabled = threads.count === 0
   }
 
   if (audio) {
@@ -95,29 +95,25 @@ export const setupDemoUI = async (
     audioToggleButton.parentElement?.appendChild(fileLabel)
   }
 
-  addWorkerButton.onclick = async () => {
+  addWorkerButton.onclick = () => {
     try {
-      await aniraWeb.spinUpInferenceWorker(customInferenceWorkerUrl)
+      threads.add()
       updateWorkerCount()
-      console.log('Added inference worker. Total:', aniraWeb.getActiveWorkers().length)
+      console.log('Added inference worker. Total:', threads.count)
     } catch (error) {
       console.error('Failed to add worker:', error)
     }
   }
 
   removeWorkerButton.onclick = async () => {
-    const workers = aniraWeb.getActiveWorkers()
-    if (workers.length === 0) {
+    if (threads.count === 0) {
       console.warn('No workers to remove')
       return
     }
-
-    await workers[0].stop()
+    removeWorkerButton.disabled = true
+    await threads.remove()
     updateWorkerCount()
-    console.log(
-      'Removed inference worker. Remaining:',
-      aniraWeb.getActiveWorkers().length
-    )
+    console.log('Removed inference worker. Remaining:', threads.count)
   }
 
   updateWorkerCount()

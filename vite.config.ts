@@ -33,6 +33,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: './index.html',
+        'simple-gain-stereo': './simple-gain-stereo.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },
