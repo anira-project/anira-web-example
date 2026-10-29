@@ -33,6 +33,7 @@ const CHECKS = [
   'steerable-nafx',
   'streaming-gain-stereo',
   'js-callback',
+  'js-copying',
 ]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
@@ -43,6 +44,7 @@ const DEMOS = [
   'steerable-nafx.html',
   'streaming-gain-stereo.html',
   'js-callback.html',
+  'js-copying.html',
 ]
 
 const types = {

@@ -10,6 +10,7 @@ const modules: Record<string, () => Promise<{ run: () => Promise<Checks> }>> = {
   'steerable-nafx': () => import('./demos/steerable-nafx'),
   'streaming-gain-stereo': () => import('./demos/streaming-gain-stereo'),
   'js-callback': () => import('./demos/js-callback'),
+  'js-copying': () => import('./demos/js-copying'),
 }
 
 type Result = { checks: Checks } | { error: string }

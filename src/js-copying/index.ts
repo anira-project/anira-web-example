@@ -1,97 +1,33 @@
-import { AniraWeb } from '@anira-project/anira'
-import { JSCopyBackend } from '../misc/JSCopyBackend'
+import { createJsCopying } from './setup'
+import { InferenceThreads } from '../utils/inferenceThreads'
 import { setupDemoUI } from '../utils/setupDemoUI'
-// `?worker&url` makes Vite bundle/transpile this into a real JS worker chunk and
-// hand back its hashed URL. Without it, the raw `./customInferenceWorker.ts` is
-// copied verbatim and served as `video/mp2t` on GitHub Pages, so `new Worker()`
-// (behind the COI service worker) fails to load it.
-import customInferenceWorkerHref from './customInferenceWorker.ts?worker&url'
-
-const customInferenceWorkerUrl = new URL(customInferenceWorkerHref, import.meta.url)
-
-const aniraWeb = await AniraWeb.create()
-await aniraWeb.spinUpInferenceWorker(customInferenceWorkerUrl)
 
 const audio = new Audio('vibes.mp3')
 const audioContext = new AudioContext({ sampleRate: 48000 })
 
-const { removeLoadingIndicator, connectAudioGraph } = await setupDemoUI(
-  aniraWeb,
-  audio,
-  audioContext,
-  customInferenceWorkerUrl
-)
-
 // -------------------
-// ------ WASM ------
+// ------ anira ------
 // -------------------
 
-const res = await fetch('simple-gain-stereo.onnx')
-if (!res.ok) {
-  throw new Error('Failed to load model')
-}
-const modelBuffer = await res.arrayBuffer()
+const demo = await createJsCopying(audioContext)
 
-const vectorModelData = aniraWeb.VectorModelData([
-  aniraWeb.ModelData(modelBuffer, aniraWeb.InferenceBackend.CUSTOM),
-])
-
-const inputShapeList = aniraWeb.TensorShapeList([[1, 2, 512], [1]])
-const outputShapeList = aniraWeb.TensorShapeList([[1, 2, 512], [1]])
-const tensorShape = aniraWeb.TensorShape(inputShapeList, outputShapeList)
-const vectorTensorShape = aniraWeb.VectorTensorShape([tensorShape])
-
-const preprocessChannels = aniraWeb.VectorSizeT([2, 1])
-const postprocessChannels = aniraWeb.VectorSizeT([2, 1])
-const preprocessSize = aniraWeb.VectorSizeT([512, 0])
-const postprocessSize = aniraWeb.VectorSizeT([512, 0])
-
-const processingSpec = aniraWeb.ProcessingSpec(
-  preprocessChannels,
-  postprocessChannels,
-  preprocessSize,
-  postprocessSize
-)
-
-const inferenceConfig = aniraWeb.InferenceConfig(
-  vectorModelData,
-  vectorTensorShape,
-  processingSpec,
-  5,
-  10,
-  false,
-  0,
-  1
-)
-
-const jsCopyBackend = new JSCopyBackend(aniraWeb.getWasmInstance(), inferenceConfig)
-await aniraWeb.registerProcessor(jsCopyBackend, 'JSCopyBackend')
-
-const ppProcessor = aniraWeb.PrePostProcessor(inferenceConfig)
-ppProcessor.setInput(1, 0, 1) // Set gain tensor (tensor 1, channel 0) to 1.0
-
-const hostAudioConfig = aniraWeb.HostConfig(128, 48000, false, 0)
-const inferenceHandler = aniraWeb.InferenceHandler(
-  ppProcessor,
-  inferenceConfig,
-  jsCopyBackend
-)
-inferenceHandler.setInferenceBackend(aniraWeb.InferenceBackend.CUSTOM)
-inferenceHandler.prepare(hostAudioConfig)
+// One inference thread to start with: a Wasm Worker that imports the worker module (the
+// engine is defined there), then runs the context's queue.
+const threads = new InferenceThreads(demo.anira, demo.context)
+threads.add()
 
 // --------------------
 // ------ Audio -------
 // --------------------
 
-await aniraWeb.registerAudioWorkletForContext(audioContext)
-const inferenceNode = await aniraWeb.configureAudioWorklet(
-  audioContext,
-  inferenceHandler,
-  ppProcessor
+const { removeLoadingIndicator, connectAudioGraph } = setupDemoUI(
+  threads,
+  audio,
+  audioContext
 )
 
 const sourceNode = audioContext.createMediaElementSource(audio)
-connectAudioGraph(sourceNode, inferenceNode)
+connectAudioGraph(sourceNode, demo.audioNode.node)
 
 removeLoadingIndicator()
 console.log('Demo initialized and ready!')
