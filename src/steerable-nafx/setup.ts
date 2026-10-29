@@ -5,9 +5,12 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
+  renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-import { QUANTUM, renderBurst } from '../utils/renderBurst'
+
+/** The render quantum: one handler call per quantum. */
+const QUANTUM = 128
 
 export type SteerableNafx = {
   anira: Anira
@@ -48,7 +51,7 @@ export async function createSteerableNafx(
   )
   const contract = (
     await Contract.fromUrl(anira, new URL('steerable-nafx.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurst(audioContext), audioContext.sampleRate)
+  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
 
   // 4. The pipeline and the handler.
   const pipeline = Pipeline.create(anira).addInference(model)
@@ -60,8 +63,6 @@ export async function createSteerableNafx(
 
   // 5. The audio node: mono in and out.
   const audioNode = await handler.createAudioNode(audioContext, {
-    inputChannels: 1,
-    outputChannels: 1,
     waitMs,
   })
 

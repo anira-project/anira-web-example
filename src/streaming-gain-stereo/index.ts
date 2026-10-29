@@ -29,15 +29,12 @@ const sourceNode = audioContext.createMediaElementSource(audio)
 connectAudioGraph(sourceNode, demo.audioNode.node)
 
 // The gain stream: a 1 Hz LFO, scaled and offset into [0.5, 2.0], one value per sample into the
-// gain node. Its output (the model's gain_out) is muted, but pulled every quantum, so the node
-// feeds the gain input in step with the audio.
+// node's second input. Its second output (the model's gain_out) goes nowhere.
 const lfo = new OscillatorNode(audioContext, { frequency: 1 })
 const depth = new GainNode(audioContext, { gain: 0.75 })
 const offset = new ConstantSourceNode(audioContext, { offset: 1.25 })
-const mute = new GainNode(audioContext, { gain: 0 })
-lfo.connect(depth).connect(demo.gainNode.node)
-offset.connect(demo.gainNode.node)
-demo.gainNode.node.connect(mute).connect(audioContext.destination)
+lfo.connect(depth).connect(demo.audioNode.node, 0, 1)
+offset.connect(demo.audioNode.node, 0, 1)
 lfo.start()
 offset.start()
 

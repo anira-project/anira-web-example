@@ -8,13 +8,16 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
+  renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
 // The stage's module on this thread too: its prepare and unprepare run here.
 import { GAIN_CLAMP_STAGE, GAIN_SLOT } from './gain-clamp-stage'
 // The same module for the audio worklet, bundled by Vite into one self-contained ES module.
 import stageModule from './gain-clamp-stage.ts?worker&url'
-import { QUANTUM, renderBurst } from '../utils/renderBurst'
+
+/** The render quantum: one handler call per quantum. */
+const QUANTUM = 128
 
 export type GainClamp = {
   anira: Anira
@@ -53,7 +56,7 @@ export async function createGainClamp(
   )
   const contract = (
     await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurst(audioContext), audioContext.sampleRate)
+  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
 
   // 4. The pipeline with the JavaScript stage, under the name its module defines it by: its
   //    pre_process crosses into the worklet, prepare and unprepare into this thread. The stage
@@ -71,8 +74,6 @@ export async function createGainClamp(
 
   // 5. The audio node: the stage's module loaded into the worklet first, the gain an AudioParam.
   const audioNode = await handler.createAudioNode(audioContext, {
-    inputChannels: 2,
-    outputChannels: 2,
     params: [GAIN_SLOT],
     waitMs,
     workletModules: [stageModule],

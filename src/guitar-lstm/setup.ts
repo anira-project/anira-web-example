@@ -8,13 +8,16 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
+  renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
 // The stage's module on this thread too: its prepare and unprepare run here.
 import { BATCHED_WINDOWS_STAGE } from './batched-windows-stage'
 // The same module for the audio worklet, bundled by Vite into one self-contained ES module.
 import stageModule from './batched-windows-stage.ts?worker&url'
-import { QUANTUM, renderBurst } from '../utils/renderBurst'
+
+/** The render quantum: one handler call per quantum. */
+const QUANTUM = 128
 
 export type GuitarLstm = {
   anira: Anira
@@ -54,7 +57,7 @@ export async function createGuitarLstm(
   const model = await ModelConfig.fromUrl(anira, new URL('guitar-lstm.model.json', site))
   const contract = (
     await Contract.fromUrl(anira, new URL('guitar-lstm.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurst(audioContext), audioContext.sampleRate)
+  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
 
   // 4. The pipeline with the stage, whose pre_process crosses into the worklet, prepare and
   //    unprepare into this thread; then the handler.
@@ -71,8 +74,6 @@ export async function createGuitarLstm(
 
   // 5. The audio node: mono in and out, the stage's module loaded into the worklet first.
   const audioNode = await handler.createAudioNode(audioContext, {
-    inputChannels: 1,
-    outputChannels: 1,
     waitMs,
     workletModules: [stageModule],
   })

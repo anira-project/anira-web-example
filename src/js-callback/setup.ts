@@ -6,12 +6,15 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
+  renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
 // The engine's id from its module; the module itself runs in each inference Worker.
 import { PASSTHROUGH_ENGINE } from './worker'
 import workerModule from './worker.ts?worker&url'
-import { QUANTUM, renderBurst } from '../utils/renderBurst'
+
+/** The render quantum: one handler call per quantum. */
+const QUANTUM = 128
 
 export type JsCallback = {
   anira: Anira
@@ -50,7 +53,7 @@ export async function createJsCallback(
   )
   const contract = (
     await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurst(audioContext), audioContext.sampleRate)
+  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
 
   // 4. The pipeline registers the engine under its id, promising it reads no model file.
   const pipeline = Pipeline.create(anira)
@@ -64,8 +67,6 @@ export async function createJsCallback(
 
   // 5. The audio node: stereo in and out.
   const audioNode = await handler.createAudioNode(audioContext, {
-    inputChannels: 2,
-    outputChannels: 2,
     waitMs,
   })
 

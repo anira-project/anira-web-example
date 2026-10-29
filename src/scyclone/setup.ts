@@ -5,9 +5,12 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
+  renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-import { QUANTUM, renderBurst } from '../utils/renderBurst'
+
+/** The render quantum: one handler call per quantum. */
+const QUANTUM = 128
 
 /** One RAVE model's stream: its audio node and its handler's latency in samples. */
 export type RaveStream = {
@@ -52,7 +55,7 @@ export async function createScyclone(
     models.push(model)
     const contract = (
       await Contract.fromUrl(anira, new URL('rave.contract.json', site))
-    ).setGeometry(QUANTUM, renderBurst(audioContext), audioContext.sampleRate)
+    ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
     const pipeline = Pipeline.create(anira).addInference(model)
     const handler = Handler.create(context, pipeline).prepare(contract)
     handlers.push(handler)
@@ -63,8 +66,6 @@ export async function createScyclone(
 
     // 4. The handler's audio node: mono in and out.
     const audioNode = await handler.createAudioNode(audioContext, {
-      inputChannels: 1,
-      outputChannels: 1,
       waitMs,
     })
     return { audioNode, latency }

@@ -1,7 +1,7 @@
 // Streaming Gain Stereo, offline: the demo's chain (createStreamingGainStereo) on one of the
-// page's inference threads, a stereo tone into the audio node and a 3 Hz gain signal into the
-// gain node. Each output sample is its input sample times the gain sample of the same instant,
-// the handler's latency later; the gain node plays the model's copy of the gain.
+// page's inference threads, a stereo tone into the node's first input and a 3 Hz gain signal into
+// its second. Each output sample is its input sample times the gain sample of the same instant,
+// the handler's latency later; the second output plays the model's copy of the gain.
 import { createStreamingGainStereo } from '../../src/streaming-gain-stereo/setup'
 import { InferenceThreads } from '../../src/utils/inferenceThreads'
 import { energy, sine, worstError, type Checks } from '../common'
@@ -31,15 +31,17 @@ export const run = async (): Promise<Checks> => {
   stereo.copyToChannel(right, 1)
   const gainBuffer = audio.createBuffer(1, length, RATE)
   gainBuffer.copyToChannel(gain, 0)
-  // Channels 0 and 1 of the render: the audio node; channel 2: the gain node.
+  // Channels 0 and 1 of the render: the node's first output; channel 2: its second.
   const merger = new ChannelMergerNode(audio, { numberOfInputs: 3 })
   const splitter = new ChannelSplitterNode(audio, { numberOfOutputs: 2 })
   const audioSource = new AudioBufferSourceNode(audio, { buffer: stereo })
   const gainSource = new AudioBufferSourceNode(audio, { buffer: gainBuffer })
-  audioSource.connect(demo.audioNode.node).connect(splitter)
+  audioSource.connect(demo.audioNode.node, 0, 0)
+  gainSource.connect(demo.audioNode.node, 0, 1)
+  demo.audioNode.node.connect(splitter, 0)
   splitter.connect(merger, 0, 0)
   splitter.connect(merger, 1, 1)
-  gainSource.connect(demo.gainNode.node).connect(merger, 0, 2)
+  demo.audioNode.node.connect(merger, 1, 2)
   merger.connect(audio.destination)
   audioSource.start(0)
   gainSource.start(0)
@@ -53,7 +55,7 @@ export const run = async (): Promise<Checks> => {
   const worstGain = worstError(out[2], latency, (j) => gain[j])
   check(
     energy(out[0]) > 1,
-    `the audio node rendered (energy ${energy(out[0]).toFixed(2)})`
+    `the node rendered audio (energy ${energy(out[0]).toFixed(2)})`
   )
   check(
     worst < 1e-6,
@@ -62,11 +64,11 @@ export const run = async (): Promise<Checks> => {
   )
   check(
     worstGain < 1e-6,
-    `the gain node plays the model's copy of the gain stream (worst error ${worstGain})`
+    `the second output plays the model's copy of the gain stream (worst error ${worstGain})`
   )
 
   await threads.remove()
   demo.teardown()
-  check(true, 'the demo tore down (the two nodes, the handler, the context)')
+  check(true, 'the demo tore down (the node, the handler, the context)')
   return checks
 }

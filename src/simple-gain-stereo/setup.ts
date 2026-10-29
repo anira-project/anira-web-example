@@ -5,9 +5,12 @@ import {
   Handler,
   ModelConfig,
   Pipeline,
+  renderBurstFrames,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
-import { QUANTUM, renderBurst } from '../utils/renderBurst'
+
+/** The render quantum: one handler call per quantum. */
+const QUANTUM = 128
 
 /** The model's Static input `gain`: input slot 1 of the model config. */
 export const GAIN_SLOT = 1
@@ -51,7 +54,7 @@ export async function createSimpleGainStereo(
   )
   const contract = (
     await Contract.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
-  ).setGeometry(QUANTUM, renderBurst(audioContext), audioContext.sampleRate)
+  ).setGeometry(QUANTUM, renderBurstFrames(audioContext), audioContext.sampleRate)
 
   // 4. The pipeline and the handler.
   const pipeline = Pipeline.create(anira).addInference(model)
@@ -63,8 +66,6 @@ export async function createSimpleGainStereo(
 
   // 5. The audio node: stereo in and out, the gain a k-rate AudioParam of the node.
   const audioNode = await handler.createAudioNode(audioContext, {
-    inputChannels: 2,
-    outputChannels: 2,
     params: [GAIN_SLOT],
     waitMs,
   })
