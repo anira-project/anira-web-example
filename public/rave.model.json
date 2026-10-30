@@ -1,0 +1,36 @@
+{
+  "models": [{ "engine": "org.anira.onnxruntime-web", "path": "rave.onnx" }],
+  "max_instances": 1,
+  "inputs": [
+    {
+      "name": "audio",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 2048]],
+      "window": { "min": 2048, "max": 2048 }
+    },
+    {
+      "name": "state_in",
+      "dtype": "float32",
+      "role": "state",
+      "axes": [["batch", 1], ["any", 63488]],
+      "state_source": "state_out"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "audio_out",
+      "dtype": "float32",
+      "role": "streamed",
+      "axes": [["batch", 1], ["channel", 1], ["time", 2048]],
+      "window": { "min": 2048, "max": 2048 },
+      "latency": 2224
+    },
+    {
+      "name": "state_out",
+      "dtype": "float32",
+      "role": "state",
+      "axes": [["batch", 1], ["any", 63488]]
+    }
+  ]
+}

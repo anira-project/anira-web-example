@@ -1,6 +1,6 @@
 // GuitarLSTM, offline: the demo's chain (loadGuitarLstm + start) on the context's default pool, a
 // tone rendered through its node. The oracle is the same model run by
-// onnxruntime-web on this page over one batch per 2048 samples, unfolded in JavaScript here:
+// onnxruntime-web on this page over one batch per 512 samples, unfolded in JavaScript here:
 // element b of a batch is the 150 samples ending at that batch's sample b, with 149 zeros
 // before the signal as the first history. The streamed output must be the oracle's, the
 // handler's latency later: the worklet's stage unfolds the windows the same way.
@@ -11,7 +11,7 @@ import { energy, renderOffline, sine, type Checks } from '../common'
 const RATE = 44100
 const QUANTUM = 128
 const QUANTA = 160
-const BATCH = 2048
+const BATCH = 512
 const CONTEXT = 150
 
 const reference = async (samples: Float32Array): Promise<Float32Array> => {
