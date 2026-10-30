@@ -10,17 +10,35 @@ hljs.registerLanguage('json', json)
 ;(window as any).hljs = hljs
 await import('highlightjs-line-numbers.js')
 
-interface SourceFile {
-  name: string
-  code: string
-  language?: string
+// A tab's text: a file the page imports as text (`?raw`), or one fetched from a URL.
+type SourceFile = { name: string; language?: string } & ({ code: string } | { url: URL })
+
+// A JSON file the site serves from public/ (a model or contract config), fetched from the URL the
+// demo itself loads it from (setup.ts): Vite does not let JavaScript import a public/ file, and the
+// tab shows exactly the file the page uses.
+export const servedJson = (name: string): SourceFile => ({
+  name,
+  url: new URL(name, new URL(import.meta.env.BASE_URL, location.href)),
+  language: 'json',
+})
+
+const readSource = async (file: SourceFile): Promise<string> => {
+  if ('code' in file) return file.code
+  try {
+    const response = await fetch(file.url)
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+    return await response.text()
+  } catch (error) {
+    return `Could not load ${file.url}: ${error}`
+  }
 }
 
-export function renderSourceCode(
+export async function renderSourceCode(
   container: HTMLElement,
   files: SourceFile[]
-) {
+): Promise<void> {
   if (files.length === 0) return
+  const sources = await Promise.all(files.map(readSource))
 
   // Build tabs
   const tabBar = document.createElement('div')
@@ -54,7 +72,7 @@ export function renderSourceCode(
     const code = document.createElement('code')
     code.className = 'hljs'
     const lang = file.language ?? 'typescript'
-    const highlighted = hljs.highlight(file.code, { language: lang }).value
+    const highlighted = hljs.highlight(sources[i], { language: lang }).value
     code.innerHTML = (hljs as any).lineNumbersValue(highlighted)
     pre.appendChild(code)
     panel.appendChild(pre)

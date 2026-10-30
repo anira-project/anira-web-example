@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import license from 'rollup-plugin-license'
 import { licenseConfig } from './licenses'
+import { fetchModels } from './fetch-models'
 
 // The module's memory is a shared WebAssembly.Memory, which needs cross-origin isolation: every
 // response of `vite` and `vite preview` carries COOP and COEP (GitHub Pages cannot send headers,
@@ -14,6 +15,8 @@ const CORS_HEADERS = {
 export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
   plugins: [
+    // The model files too large for git (the RAVE demo's), into public/ before anything starts.
+    fetchModels(),
     viteStaticCopy({
       targets: [
         {
@@ -42,7 +45,7 @@ export default defineConfig({
         'js-callback': './js-callback.html',
         'js-copying': './js-copying.html',
         'guitar-lstm': './guitar-lstm.html',
-        scyclone: './scyclone.html',
+        rave: './rave.html',
         licenses: './licenses.html',
       },
       output: { format: 'es' },

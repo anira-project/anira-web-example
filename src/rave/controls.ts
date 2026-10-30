@@ -1,8 +1,6 @@
 export type GraphRefs = {
   audioContext: AudioContext
   inputGain: GainNode
-  fadeGain1: GainNode
-  fadeGain2: GainNode
   dryGain: GainNode
   wetGain: GainNode
 }
@@ -18,16 +16,9 @@ type SliderSpec = {
 }
 
 export function setupControls(refs: GraphRefs, root: HTMLElement) {
-  const { audioContext, inputGain, fadeGain1, fadeGain2, dryGain, wetGain } = refs
+  const { audioContext, inputGain, dryGain, wetGain } = refs
 
   const dbToGain = (db: number) => Math.pow(10, db / 20)
-
-  function setFade(value: number) {
-    // 1 → only Funk; 0 → only Djembe.
-    const t = audioContext.currentTime
-    fadeGain1.gain.setTargetAtTime(value, t, 0.01)
-    fadeGain2.gain.setTargetAtTime(1 - value, t, 0.01)
-  }
 
   function setMix(value: number) {
     const t = audioContext.currentTime
@@ -35,17 +26,12 @@ export function setupControls(refs: GraphRefs, root: HTMLElement) {
     wetGain.gain.setTargetAtTime(value, t, 0.01)
   }
 
-  setFade(1.0)
   setMix(0.7)
 
   const sliderSpecs: Record<string, SliderSpec> = {
     inputGainSlider: {
       label: 'Input gain', unit: 'dB', min: -12, max: 12, step: 0.1, default: 0,
       onChange: (v) => inputGain.gain.setTargetAtTime(dbToGain(v), audioContext.currentTime, 0.01),
-    },
-    fade: {
-      label: 'Fade (Funk ↔ Djembe)', min: 0, max: 1, step: 0.01, default: 1,
-      onChange: setFade,
     },
     mix: {
       label: 'Mix (Dry ↔ Wet)', min: 0, max: 1, step: 0.01, default: 0.7,

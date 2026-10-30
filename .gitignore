@@ -2,3 +2,6 @@ node_modules
 dist
 .DS_Store
 test/dist
+# Model files fetched by fetch-models.ts (too large for git)
+public/rave.onnx
+public/*.part
