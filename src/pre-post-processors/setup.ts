@@ -15,6 +15,7 @@ import type { AniraAudioNode } from '@anira-project/anira'
 import { GAIN_CLAMP_STAGE, GAIN_SLOT } from './gain-clamp-stage'
 // The same module for the audio worklet, bundled by Vite into one self-contained ES module.
 import stageModule from './gain-clamp-stage.ts?worker&url'
+import { engineName } from '../utils/engineName'
 
 /** The chain on a running context: what `start` returns. */
 export type GainClampChain = {
@@ -83,7 +84,7 @@ export async function loadGainClamp(): Promise<GainClamp> {
     const handler = InferenceHandler.create(context, pipeline)
     const report = handler.prepare(contract) // the plans this prepare compiled
     for (const plan of report.plans()) {
-      console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+      console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
     }
     pipeline.destroy()
     console.log(`latency: ${handler.getLatency()} samples`)

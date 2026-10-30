@@ -12,6 +12,7 @@ import type { AniraAudioNode } from '@anira-project/anira'
 // The engine's id from the worker module, which itself runs in each inference Worker.
 import { JS_COPY_ENGINE } from './worker'
 import workerModule from './worker.ts?worker&url'
+import { engineName } from '../utils/engineName'
 
 /** The chain on a running context: what `start` returns. */
 export type JsCopyingChain = {
@@ -77,7 +78,7 @@ export async function loadJsCopying(): Promise<JsCopying> {
     const handler = InferenceHandler.create(context, pipeline)
     const report = handler.prepare(contract) // the plans this prepare compiled
     for (const plan of report.plans()) {
-      console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+      console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
     }
     pipeline.destroy()
     console.log(`latency: ${handler.getLatency()} samples`)

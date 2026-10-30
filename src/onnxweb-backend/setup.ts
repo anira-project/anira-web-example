@@ -11,6 +11,7 @@ import {
 import type { AniraAudioNode } from '@anira-project/anira'
 // The worker module, bundled by Vite into one self-contained ES module; its URL.
 import workerModule from './worker.ts?worker&url'
+import { engineName } from '../utils/engineName'
 
 /** The model's Static input `gain`: input slot 1 of the model config. */
 export const GAIN_SLOT = 1
@@ -79,7 +80,7 @@ export async function loadOnnxRuntimeWebBackend(): Promise<OnnxRuntimeWebBackend
     const handler = InferenceHandler.create(context, pipeline)
     const report = handler.prepare(contract) // the plans this prepare compiled
     for (const plan of report.plans()) {
-      console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+      console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
     }
     pipeline.destroy()
     console.log(`latency: ${handler.getLatency()} samples`)

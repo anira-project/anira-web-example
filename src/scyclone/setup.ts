@@ -8,6 +8,7 @@ import {
   measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
+import { engineName } from '../utils/engineName'
 
 /** One RAVE model's stream: its audio node and its handler's latency in samples. */
 export type RaveStream = {
@@ -83,7 +84,7 @@ export async function loadScyclone(): Promise<Scyclone> {
       const handler = InferenceHandler.create(context, pipeline)
       const report = handler.prepare(contract) // the plans this prepare compiled
       for (const plan of report.plans()) {
-        console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+        console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
       }
       pipeline.destroy()
       return handler

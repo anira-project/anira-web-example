@@ -17,6 +17,7 @@ import stageModule from './stage.ts?worker&url'
 import { DOUBLE_ENGINE } from './engine'
 import { QUARTER_STAGE } from './stage'
 import { energy, renderOffline, sine, worstError, type Checks } from '../common'
+import { engineName } from '../../src/utils/engineName'
 
 const RATE = 48000
 const QUANTUM = 128
@@ -64,7 +65,7 @@ export const run = async (): Promise<Checks> => {
   const handler = InferenceHandler.create(context, pipeline)
   const report = handler.prepare(contract) // the plans this prepare compiled
   for (const plan of report.plans()) {
-    console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+    console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
   }
   pipeline.destroy()
   contract.destroy()

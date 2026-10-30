@@ -8,6 +8,7 @@ import {
   measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
+import { engineName } from '../utils/engineName'
 
 /** The chain on a running context: what `start` returns. */
 export type StreamingGainStereoChain = {
@@ -75,7 +76,7 @@ export async function loadStreamingGainStereo(): Promise<StreamingGainStereo> {
     const handler = InferenceHandler.create(context, pipeline)
     const report = handler.prepare(contract) // the plans this prepare compiled
     for (const plan of report.plans()) {
-      console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+      console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
     }
     pipeline.destroy()
     console.log(`latency: ${handler.getLatency()} samples`)
