@@ -1,5 +1,5 @@
 {
-  "models": [{ "engine": "onnxruntime", "path": "rave.onnx" }],
+  "models": [{ "engine": "org.anira.onnxruntime-web", "path": "rave.onnx" }],
   "max_instances": 1,
   "inputs": [
     {

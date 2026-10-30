@@ -1,11 +1,13 @@
-// RAVE: Magnetic Resonator Piano, offline: the demo's chain (loadRave + start) on the context's
-// default pool, a tone rendered through its node. The export is deterministic (the encoder takes
-// the posterior mean, the decoder fills the cropped latents with zeros), so the oracle is exact:
-// the same model run by onnxruntime-web on this page, 2048 samples per call from the start of
-// the signal, each call's state_out fed back as the next state_in, from zeros. That output
-// already holds the model's own 2224 samples of delay; the streamed output must be it, the
-// handler's latency less those 2224 later. A state anira did not carry fails after the first
-// block.
+// RAVE: Magnetic Resonator Piano, offline: the demo's chain (loadRave + start) on its context's
+// one inference thread, whose engine runs each inference on two threads, a tone rendered through
+// its node. The export is deterministic (the encoder takes the posterior mean, the decoder fills
+// the cropped latents with zeros), so the oracle is the same model run by onnxruntime-web on this
+// page on one thread, 2048 samples per call from the start of the signal, each call's state_out
+// fed back as the next state_in, from zeros. That output already holds the model's own 2224
+// samples of delay; the streamed output must be it, the handler's latency less those 2224 later,
+// up to float rounding (two threads sum in another order than one). A state anira did not carry
+// fails after the first block. The render waits for each inference in turn, so its time per
+// block is about one inference's: reported, not checked.
 import * as ort from 'onnxruntime-web/wasm'
 import { loadRave } from '../../src/rave/setup'
 import { energy, renderOffline, sine, type Checks } from '../common'
@@ -47,16 +49,18 @@ export const run = async (): Promise<Checks> => {
   const loaded = await loadRave()
   const chain = await loaded.start(audio, { waitMs: 3000 })
   const demo = { ...loaded, ...chain, latency: chain.latency() }
-  // The context's default pool: an offline render waits for its inferences, so its Workers
-  // must be in their loops first.
+  // The context's pool: an offline render waits for its inferences, so its Worker must be in
+  // its loop first (its engine's init, which starts onnxruntime-web's own Worker, comes before).
   await demo.context.ready()
   check(
     demo.context.threads >= 1,
-    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+    `the context's pool of ${demo.context.threads} inference thread(s) is in its loops`
   )
 
   const samples = sine(length, RATE, 220, 0.5)
+  const renderStart = performance.now()
   const [rendered] = await renderOffline(audio, demo.audioNode.node, [samples])
+  const renderMs = performance.now() - renderStart
   const shift = demo.latency - MODEL_LATENCY
   const expected = await reference(samples)
 
@@ -70,7 +74,9 @@ export const run = async (): Promise<Checks> => {
   }
   check(
     energy(rendered) > 0 && rendered.every(Number.isFinite),
-    `the node rendered audio (energy ${energy(rendered).toFixed(2)}, all finite)`
+    `the node rendered audio (energy ${energy(rendered).toFixed(2)}, all finite; ${BLOCKS} ` +
+      `blocks in ${renderMs.toFixed(0)} ms, ${(renderMs / BLOCKS).toFixed(1)} ms per block ` +
+      `waiting for each inference)`
   )
   check(
     compared >= 4 * BLOCK && peak > 0 && worst < 1e-4 * Math.max(1, peak),

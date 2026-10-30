@@ -71,7 +71,7 @@
           <li>
             <a class="card-link" href="rave.html">
               <div class="card-link__name">RAVE: Magnetic Resonator Piano</div>
-              <div class="card-link__desc">A streaming RAVE model whose convolution caches are one state tensor: the model config declares the pair, and anira carries the state from one 2048-sample inference to the next. A mix slider sets the dry/wet balance with latency-aligned bypass.</div>
+              <div class="card-link__desc">A streaming RAVE model whose convolution caches are one state tensor: the model config declares the pair, and anira carries the state from one 2048-sample inference to the next, each split across two threads by the ONNX Runtime Web engine. A mix slider sets the dry/wet balance with latency-aligned bypass.</div>
             </a>
           </li>
         </ul>

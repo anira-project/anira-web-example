@@ -4,10 +4,14 @@ import {
   Contract,
   Handler,
   ModelConfig,
+  ONNXRUNTIME_WEB_ENGINE_ID, // from the root entry: naming the engine bundles no onnxruntime-web
   Pipeline,
   measureRenderGeometry,
 } from '@anira-project/anira'
 import type { AniraAudioNode } from '@anira-project/anira'
+// The context's worker module (the ONNX Runtime Web engine with two threads per inference),
+// bundled by Vite into one self-contained ES module.
+import workerModule from './worker.ts?worker&url'
 
 /** The chain on a running context: what `start` returns. */
 export type RaveChain = {
@@ -28,13 +32,14 @@ export type Rave = {
 
 /**
  * The demo's anira chain: a streaming RAVE model (the magnetic resonator piano model of anira's
- * realtime inference workshop) on the built-in ONNX Runtime engine, mono, 2048 samples per
- * inference at 44.1 kHz. The model is stateful: every convolution cache is one flat tensor
- * that each inference takes in and gives back. The model config declares that pair
- * (`state_in` fed from `state_out`), so anira carries the state from one inference to the
- * next, starts a new stream from zeros and runs the handler's inferences one at a time. The
- * output also carries the network's own delay, 2224 samples, which the handler's latency
- * includes. Loading needs no audio; `start` needs a running context (a live one is measured:
+ * realtime inference workshop), mono, 2048 samples per inference at 44.1 kHz. The model is
+ * stateful: every convolution cache is one flat tensor that each inference takes in and gives
+ * back. The model config declares that pair (`state_in` fed from `state_out`), so anira carries
+ * the state from one inference to the next, starts a new stream from zeros and runs the
+ * handler's inferences one at a time. One inference on one thread takes most of the 46.4 ms a
+ * block lasts, so the model runs on the ONNX Runtime Web engine with two threads per inference
+ * (worker.ts), defined in the context's worker module. The output also carries the network's
+ * own delay, 2224 samples, which the handler's latency includes. Loading needs no audio; `start` needs a running context (a live one is measured:
  * `await audioContext.resume()` first). `waitMs` lets each quantum wait for its inference (an
  * offline render).
  */
@@ -44,10 +49,10 @@ export async function loadRave(): Promise<Rave> {
   anira.setLogHook()
   const stopLogPump = anira.startLogPump()
 
-  // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
-  //    engine needs no worker module. The state makes each inference wait for the one before
-  //    it, so one thread runs this model at a time, whatever the pool's size.
-  const context = Context.create(anira)
+  // 2. A context with one inference thread (a Wasm Worker) that imports the worker module. The
+  //    state makes each inference wait for the one before it, so a larger pool would only
+  //    start more runtimes that wait; the second core comes from the engine's own thread.
+  const context = Context.create(anira, { threads: 1, workerModule })
 
   // 3. The configs: the tensors, the state pair, the model's own latency and one instance
   //    (each would hold its own copy of the 126 MB model) (public/rave.model.json), and the
@@ -63,8 +68,11 @@ export async function loadRave(): Promise<Rave> {
     const geometry = await measureRenderGeometry(audioContext)
     contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
-    // 5. The handler over a pipeline with the one inference stage, prepared under the contract.
-    const pipeline = Pipeline.create(anira).addInference(model)
+    // 5. The handler over a pipeline with the one inference stage and the engine the model
+    //    config names (defined in the worker module), prepared under the contract.
+    const pipeline = Pipeline.create(anira)
+      .addInference(model)
+      .registerEngine(ONNXRUNTIME_WEB_ENGINE_ID)
     const handler = Handler.create(context, pipeline).prepare(contract)
     pipeline.destroy()
     console.log(`latency: ${handler.latency()} samples`)

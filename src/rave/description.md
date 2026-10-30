@@ -22,20 +22,34 @@ filter bank), declared as the output's `"latency": 2224`. `max_instances` is 1: 
 would hold its own copy of the 126 MB model, and the state lets only one inference run at a
 time anyway.
 
+## Two threads per inference
+
+The state rules out the usual way to keep up: anira cannot run the next block's inference on
+a second inference thread, because it needs the state of the one before. So the time one
+inference takes is what decides, and on one thread it is too long: about 50 ms per block in
+Chromium on Apple silicon, against a block of 46.4 ms, and every block that comes late plays as
+silence. The model therefore runs on anira's ONNX Runtime Web engine with **two intra-op
+threads** (`onnxRuntimeWeb({ numThreads: 2 })` in `worker.ts`, the context's worker module):
+onnxruntime-web starts one Worker of its own in the inference Worker, and each inference is
+split across the two. That brings a block to about 37 ms. The context has one inference thread,
+since a second would only wait. anira's built-in ONNX Runtime engine (`"engine":
+"onnxruntime"`) runs one thread in the browser, as the module starts no pthread of its own.
+
 ## How the DSP maps to Web Audio
 
 | Block | Implementation |
 |---|---|
-| RAVE inference | One handler on the built-in ONNX Runtime engine (`rave.model.json`, `rave.contract.json`), with its audio node |
+| RAVE inference | One handler (`rave.model.json`, `rave.contract.json`) on the ONNX Runtime Web engine with two threads per inference, defined in the context's worker module (`worker.ts`), with its audio node |
 | Stereo → mono downmix | `inputGain` GainNode with `channelCount=1`, `channelInterpretation='speakers'` |
 | Dry/wet crossfade | `dryGain` / `wetGain` with gains summing to 1, both connected to `destination` |
 | Latency compensation | `dryDelay`, a `DelayNode` on the dry path set to the handler's `latency()`, which anira derives from the model config and the contract during `prepare()` ([latency model docs](https://anira-project.github.io/anira/latency.html)): the alignment between the host's block and the model's 2048 samples, the blocks that pass while the model infers (the contract's budget of 46.4 ms), and the model's own 2224 samples. |
 
 ## Notes
 
-- **CPU**: one inference takes most of its 46.4 ms budget on a fast machine (about 35 ms in
-  Chromium on Apple silicon). Because of the state, more inference threads do not help; a
-  slower machine or browser misses blocks, which play as silence.
+- **CPU**: even on two threads a block takes about 37 of its 46.4 ms on a fast machine
+  (Chromium on Apple silicon). A slower machine or browser, or a thread the system puts on an
+  efficiency core, misses blocks, which play as silence. More than two threads was slower here
+  (about 47 ms with four), as the slowest thread holds each inference up.
 - **Sample rate**: the model is trained at **44.1 kHz**; the `AudioContext` is pinned to 44100.
 - **Model file**: 126 MB, too large for git. `fetch-models.ts` downloads it from the
   workshop's release before the dev server or a build starts.

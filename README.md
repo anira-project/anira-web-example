@@ -6,13 +6,13 @@ A small collection of in-browser demos for [anira](https://github.com/anira-proj
 
 ## Building against a local anira checkout
 
-The dependency is `"@anira-project/anira": "file:../anira/web"`: an anira checkout beside this one, whose package npm links. Until anira PR #213 (the lean web runtime) is merged, check out its branch `feat/v3-web-ts`.
+The dependency is `"@anira-project/anira": "file:../anira/web"`: an anira checkout beside this one, whose package npm links. Until anira PR #221 (`onnxRuntimeWeb({ numThreads })`, which the RAVE demo uses, and the Debug build's Workers) is merged, check out its branch `fix/v3-debug-wasm-memory`; once it is, `v3`.
 
 ```bash
 # next to this repository
 git clone https://github.com/anira-project/anira.git ../anira
 cd ../anira
-git checkout feat/v3-web-ts
+git checkout fix/v3-debug-wasm-memory   # until anira #221 is merged; then v3
 
 # the WASM module (emsdk 4.0.23; emcc --emit-tsd needs tsc on the PATH)
 export EMSDK=/path/to/emsdk-4.0.23
@@ -61,7 +61,7 @@ Each demo's anira chain is its `setup.ts`, the page wiring its `index.ts`; the p
 - **PrePostProcessors** — a JavaScript stage in the audio worklet that clamps the gain to 1.0 in `pre_process`.
 - **Steerable-NAFX (CNN)** — a CNN amp model whose receptive field is the model config's declared window and `overlap` (132): no stage, no worklet module.
 - **GuitarLSTM (HybridNN)** — an LSTM amp model on a batch of 2048 overlapping 150-sample windows: the config declares the hop and the history, a JavaScript stage unfolds the batch with one `anira_ring_pop_windows` call.
-- **RAVE: Magnetic Resonator Piano** — a streaming RAVE model (the realtime inference workshop's export) whose convolution caches are one state tensor: the model config declares the pair (`role: "state"`, `state_source`) and the model's own latency (2224 samples), so anira carries the state between the 2048-sample inferences; with a latency-aligned dry path.
+- **RAVE: Magnetic Resonator Piano** — a streaming RAVE model (the realtime inference workshop's export) whose convolution caches are one state tensor: the model config declares the pair (`role: "state"`, `state_source`) and the model's own latency (2224 samples), so anira carries the state between the 2048-sample inferences. The state makes the inferences run one after another, so each one runs on the ONNX Runtime Web engine with two intra-op threads (`onnxRuntimeWeb({ numThreads: 2 })` in the context's worker module, one inference thread): about 37 ms per 46.4 ms block in Chromium, where one thread took about 50; with a latency-aligned dry path.
 
 Every demo but one creates its context with the default pool of inference threads. JS Callback shows the other way: its context has no pool (`threads: 0`) and its `+ / − Worker` buttons start and stop the page's own `anira_inference_thread_*` threads (`src/utils/inferenceThreads.ts`), because a pool's size is fixed when it is created.
 
