@@ -21,21 +21,33 @@
         <h2 class="section__title">Demos</h2>
         <ul class="card-list">
           <li>
-            <a class="card-link" href="simple-gain-stereo.html">
-              <div class="card-link__name">Simple Gain Stereo</div>
-              <div class="card-link__desc">The minimal end-to-end Anira Web setup — a stereo gain model from the same JSON files a native host loads, on the module's built-in ONNX Runtime, and the foundation every other demo builds on.</div>
+            <a class="card-link" href="rave.html">
+              <div class="card-link__name">RAVE: Magnetic Resonator Piano</div>
+              <div class="card-link__desc">A streaming RAVE model whose convolution caches are one state tensor: the model config declares the pair, and anira carries the state from one 2048-sample inference to the next, each split across two threads by the ONNX Runtime Web engine. A mix slider sets the dry/wet balance with latency-aligned bypass.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="guitar-lstm.html">
+              <div class="card-link__name">GuitarLSTM (HybridNN)</div>
+              <div class="card-link__desc">A hybrid LSTM/dense guitar amp whose JavaScript stage unfolds each block into a batched <code>[2048, 1, 150]</code> tensor of overlapping 150-sample context windows run in parallel.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="steerable-nafx.html">
+              <div class="card-link__name">Steerable-NAFX (CNN)</div>
+              <div class="card-link__desc">A CNN-based neural guitar amp whose model config declares each block's input as a sliding window with an overlap of 132 samples of past context for the convolutions to look back at.</div>
+            </a>
+          </li>
+          <li>
+            <a class="card-link" href="pre-post-processors.html">
+              <div class="card-link__name">PrePostProcessors</div>
+              <div class="card-link__desc">A JavaScript stage in the audio worklet takes part in pre-processing, demonstrated by clamping the gain slider to <code>[0, 1]</code> on every block.</div>
             </a>
           </li>
           <li>
             <a class="card-link" href="streaming-gain-stereo.html">
               <div class="card-link__name">Streaming Gain Stereo</div>
               <div class="card-link__desc">Delivers gain as a second Streamed tensor for sample-accurate updates, driven by a Web Audio LFO through a second audio node on the same handler.</div>
-            </a>
-          </li>
-          <li>
-            <a class="card-link" href="js-callback.html">
-              <div class="card-link__name">JS Callback</div>
-              <div class="card-link__desc">The simplest way to move inference out of WASM and into JavaScript — a passthrough JavaScript engine, defined in the worker module every inference Worker imports; the page starts and stops those Workers itself.</div>
             </a>
           </li>
           <li>
@@ -51,27 +63,15 @@
             </a>
           </li>
           <li>
-            <a class="card-link" href="pre-post-processors.html">
-              <div class="card-link__name">PrePostProcessors</div>
-              <div class="card-link__desc">A JavaScript stage in the audio worklet takes part in pre-processing, demonstrated by clamping the gain slider to <code>[0, 1]</code> on every block.</div>
+            <a class="card-link" href="js-callback.html">
+              <div class="card-link__name">JS Callback</div>
+              <div class="card-link__desc">The simplest way to move inference out of WASM and into JavaScript — a passthrough JavaScript engine, defined in the worker module every inference Worker imports; the page starts and stops those Workers itself.</div>
             </a>
           </li>
           <li>
-            <a class="card-link" href="steerable-nafx.html">
-              <div class="card-link__name">Steerable-NAFX (CNN)</div>
-              <div class="card-link__desc">A CNN-based neural guitar amp whose model config declares each block's input as a sliding window with an overlap of 132 samples of past context for the convolutions to look back at.</div>
-            </a>
-          </li>
-          <li>
-            <a class="card-link" href="guitar-lstm.html">
-              <div class="card-link__name">GuitarLSTM (HybridNN)</div>
-              <div class="card-link__desc">A hybrid LSTM/dense guitar amp whose JavaScript stage unfolds each block into a batched <code>[2048, 1, 150]</code> tensor of overlapping 150-sample context windows run in parallel.</div>
-            </a>
-          </li>
-          <li>
-            <a class="card-link" href="rave.html">
-              <div class="card-link__name">RAVE: Magnetic Resonator Piano</div>
-              <div class="card-link__desc">A streaming RAVE model whose convolution caches are one state tensor: the model config declares the pair, and anira carries the state from one 2048-sample inference to the next, each split across two threads by the ONNX Runtime Web engine. A mix slider sets the dry/wet balance with latency-aligned bypass.</div>
+            <a class="card-link" href="simple-gain-stereo.html">
+              <div class="card-link__name">Simple Gain Stereo</div>
+              <div class="card-link__desc">The minimal end-to-end Anira Web setup — a stereo gain model from the same JSON files a native host loads, on the module's built-in ONNX Runtime, and the foundation every other demo builds on.</div>
             </a>
           </li>
         </ul>

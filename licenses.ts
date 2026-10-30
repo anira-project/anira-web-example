@@ -53,6 +53,26 @@ Attribution: "Magnetic resonator piano RAVE model — Intelligent Instruments
 Lab (https://huggingface.co/Intelligent-Instruments-Lab/rave-models)".
 `,
   },
+  {
+    name: 'Realtime inference workshop demo input (chords.wav)',
+    version: '',
+    homepage: 'https://github.com/anira-project/realtime-inference-workshop',
+    license: 'CC-BY-NC-4.0',
+    licenseText: `The RAVE demo's input chords.wav, served from /public, is
+slides/assets/audio/demo_input.wav of anira's realtime inference workshop
+(https://github.com/anira-project/realtime-inference-workshop): slow chords
+synthesized by its scripts/render_demo.py, no third-party audio. Copied
+unmodified.
+
+The workshop is licensed under Creative Commons Attribution-NonCommercial 4.0
+International (CC-BY-NC-4.0).
+
+Full text: https://creativecommons.org/licenses/by-nc/4.0/legalcode
+
+Attribution: "Realtime inference workshop — anira project
+(https://github.com/anira-project/realtime-inference-workshop)".
+`,
+  },
 ] satisfies Array<{
   name: string
   version: string

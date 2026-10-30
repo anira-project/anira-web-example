@@ -7,7 +7,9 @@ import { setupDemoUI } from '../utils/setupDemoUI'
 // Boot
 // -------------------------------------------------------------------------
 
-const audio = new Audio('drumloop.mp3')
+// The realtime inference workshop's demo input: slow synthesized chords, the kind of sound the
+// magnetic resonator piano model was trained on (on drums it mostly falls silent).
+const audio = new Audio('chords.wav')
 // The model is trained at 44.1 kHz: the context runs at its rate.
 const audioContext = createAudioContext(44100)
 

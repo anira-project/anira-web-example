@@ -57,9 +57,14 @@ export async function loadRave(): Promise<Rave> {
   // 3. The configs: the tensors, the state pair, the model's own latency and one instance
   //    (each would hold its own copy of the 126 MB model) (public/rave.model.json), and the
   //    Hard contract: 46.4 ms per inference (2048 samples at 44.1 kHz, the real-time
-  //    threshold), 3 warm-up runs, zeros for a block that misses (public/rave.contract.json).
+  //    threshold), no warm-up by anira ("none": the engine warms itself up, worker.ts), and a
+  //    block that misses plays the input instead (bypass)
+  //    (public/rave.contract.json). The page fetches no model file (fetchModel): the engine
+  //    fetches rave.onnx itself in its init and warms up there (worker.ts).
   const site = new URL(import.meta.env.BASE_URL, location.href)
-  const model = await ModelConfig.fromUrl(anira, new URL('rave.model.json', site))
+  const model = await ModelConfig.fromUrl(anira, new URL('rave.model.json', site), {
+    fetchModel: () => false,
+  })
   const contract = await Contract.fromUrl(anira, new URL('rave.contract.json', site))
 
   const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
@@ -77,9 +82,9 @@ export async function loadRave(): Promise<Rave> {
     pipeline.destroy()
     console.log(`latency: ${handler.latency()} samples`)
 
-    // 6. The audio node: mono in and out. An offline render waits for its inferences: the pool
-    //    first.
-    if (waitMs > 0) await context.ready()
+    // 6. The audio node: mono in and out, once the inference Worker is in its loop, its engine's
+    //    session created and warmed up, so the stream's first blocks do not wait for them.
+    await context.ready()
     const audioNode = await handler.createAudioNode(audioContext, { waitMs })
 
     // 7. After an output-device change: measure again, holding the running node meanwhile
