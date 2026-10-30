@@ -38,9 +38,9 @@ export type GuitarLstm = {
 
 /**
  * The demo's anira chain: the GuitarLSTM hybrid LSTM/dense network on the built-in ONNX Runtime
- * engine, mono. Its input is a batch of 2048 context windows of 150 samples (149 past, 1 new
- * each). The model config declares the hop and the history: a window of 2197 samples with an
- * overlap of 149, so each inference takes 2048 new samples and yields 2048. The unfolding of
+ * engine, mono. Its input is a batch of 512 context windows of 150 samples (149 past, 1 new
+ * each). The model config declares the hop and the history: a window of 661 samples with an
+ * overlap of 149, so each inference takes 512 new samples and yields 512. The unfolding of
  * that window into the batch is a JavaScript stage in the audio worklet
  * (batched-windows-stage.ts): the default pre-processing fills a tensor with one contiguous
  * window. Loading needs no audio; `start` needs a running context (a live one is measured:
@@ -58,8 +58,11 @@ export async function loadGuitarLstm(): Promise<GuitarLstm> {
   const context = Context.create(anira)
 
   // 3. The configs: the model's axes, window and overlap (public/guitar-lstm.model.json), and
-  //    the Hard contract: 46.4 ms per inference (2048 samples at 44.1 kHz, the 2.x real-time
-  //    threshold), 2 warm-up runs.
+  //    the Hard contract: 34.8 ms per inference, three hops of 512 samples at 44.1 kHz, and 2
+  //    warm-up runs. The model has no state, so the pool runs consecutive inferences side by
+  //    side and a budget longer than a hop costs latency, not throughput; it covers an
+  //    inference on a slow core (about 18 ms at this batch on an efficiency core of Apple
+  //    silicon, about 6 on a performance one).
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const model = await ModelConfig.fromUrl(anira, new URL('guitar-lstm.model.json', site))
   const contract = await Contract.fromUrl(

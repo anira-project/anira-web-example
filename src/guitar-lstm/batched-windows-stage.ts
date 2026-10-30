@@ -1,7 +1,7 @@
 // The demo's JavaScript stage: it unfolds the input ring into the batch of overlapping context
-// windows the network takes, [2048, 1, 150], in pre_process: window b holds the 149 samples
+// windows the network takes, [512, 1, 150], in pre_process: window b holds the 149 samples
 // before new sample b and sample b itself. One native call (anira_ring_pop_windows) pops the
-// 2048 new samples and writes all 2048 windows; the model config's overlap of 149 keeps that
+// 512 new samples and writes all 512 windows; the model config's overlap of 149 keeps that
 // much history in the ring. It is the pre-processing of anira's native HybridNN example
 // (extras/models/hybrid-nn) in JavaScript.
 //
@@ -19,7 +19,7 @@ import {
 export const BATCHED_WINDOWS_STAGE = 'org.anira-web-example.batched-windows'
 
 /** Windows per inference: the batch axis of the model's input. */
-const BATCH = 2048
+const BATCH = 512
 /** Samples per window: the time axis of the model's input. */
 const CONTEXT = 150
 
