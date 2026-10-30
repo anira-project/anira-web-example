@@ -2,6 +2,7 @@ import sourceCode from './index.ts?raw'
 import setupSource from './setup.ts?raw'
 import modelJson from '../../public/streaming-gain-stereo.model.json?raw'
 import contractJson from '../../public/streaming-gain-stereo.contract.json?raw'
+import aniraSource from '../utils/anira.ts?raw'
 import demoUISource from '../utils/setupDemoUI.ts?raw'
 import { renderSourceCode } from '../utils/renderSourceCode'
 import { renderDescription } from '../utils/renderDescription'
@@ -12,6 +13,7 @@ renderSourceCode(document.getElementById('source-code-container')!, [
   { name: 'index.ts', code: sourceCode },
   { name: 'streaming-gain-stereo.model.json', code: modelJson, language: 'json' },
   { name: 'streaming-gain-stereo.contract.json', code: contractJson, language: 'json' },
+  { name: 'anira.ts', code: aniraSource },
   { name: 'setupDemoUI.ts', code: demoUISource },
 ])
 

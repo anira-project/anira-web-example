@@ -13,7 +13,7 @@ audio worklet. In v3 the model config **declares** it:
 `steerable-nafx.model.json` gives the input a window of 1156 samples
 with an `overlap` of 132, the elements kept from the previous window,
 so the hop is 1024 and anira's default pre-processing builds the
-window from the input ring. No stage, no worklet module: the demo is
+window from the input ring. No processor, no worklet module: the demo is
 the plain chain of [Simple Gain Stereo](simple-gain-stereo.html),
 mono.
 

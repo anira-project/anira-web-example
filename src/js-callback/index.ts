@@ -6,10 +6,6 @@ import { connectDryWet, setupDemoUI } from '../utils/setupDemoUI'
 const audio = new Audio('vibes.mp3')
 const audioContext = createAudioContext(48000)
 
-// -------------------
-// ------ anira ------
-// -------------------
-
 // At load: the module, the context and the configs. The chain waits for the first Play.
 const demo = await loadJsCallback()
 
@@ -17,10 +13,6 @@ const demo = await loadJsCallback()
 // engine is defined there), then runs the context's queue.
 const threads = new InferenceThreads(demo.anira, demo.context)
 threads.add()
-
-// --------------------
-// ------ Audio -------
-// --------------------
 
 const { removeLoadingIndicator } = setupDemoUI({
   audio,

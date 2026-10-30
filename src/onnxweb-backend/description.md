@@ -14,7 +14,7 @@ defines the engine under its id (`defineEngine`), and the engine's
 `init` loads onnxruntime-web's wasm module in that Worker; `process`
 then runs synchronously from the Worker's loop. The model config names
 the engine by the same id and the `.onnx` file beside it, and the
-pipeline registers it (`registerEngine`). `ModelConfig.fromUrl`
+pipeline registers it (`addEngine`). `ModelConfig.fromUrl`
 fetches the model once, on the main thread, and attaches its bytes to
 the config: every Worker of the context's pool builds an engine
 instance of its own, whose session is created from those bytes in the

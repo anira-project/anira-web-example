@@ -1,4 +1,4 @@
-// The demo's JavaScript stage: it unfolds the input ring into the batch of overlapping context
+// The demo's JavaScript processor: it unfolds the input ring into the batch of overlapping context
 // windows the network takes, [2048, 1, 150], in pre_process: window b holds the 149 samples
 // before new sample b and sample b itself. One native call (anira_ring_pop_windows) pops the
 // 2048 new samples and writes all 2048 windows; the model config's overlap of 149 keeps that
@@ -11,12 +11,12 @@
 import {
   ANIRA_DTYPE_F32,
   anira_status,
-  defineStage,
+  defineProcessor,
   layout,
 } from '@anira-project/anira/scope'
 
-/** The stage's name: the pipeline adds it under this name (Pipeline.addStage). */
-export const BATCHED_WINDOWS_STAGE = 'org.anira-web-example.batched-windows'
+/** The processor's name: the pipeline adds it under this name (Pipeline.addProcessor). */
+export const BATCHED_WINDOWS_PROCESSOR = 'org.anira-web-example.batched-windows'
 
 /** Windows per inference: the batch axis of the model's input. */
 const BATCH = 2048
@@ -29,7 +29,7 @@ const TENSOR = 0
 const RING = layout.anira_tensor.size
 const PREPARED_BYTES = RING + 4
 
-defineStage(BATCHED_WINDOWS_STAGE, ({ abi, module }) => ({
+defineProcessor(BATCHED_WINDOWS_PROCESSOR, ({ abi, module }) => ({
   // Main thread, at the handler's prepare; freed in unprepare.
   prepare(_prepareInfo: number, outPrepared: number): number {
     const prepared = module._malloc(PREPARED_BYTES)
@@ -49,8 +49,8 @@ defineStage(BATCHED_WINDOWS_STAGE, ({ abi, module }) => ({
     const tensor = prepared + TENSOR
     const ring = prepared + RING
     if (
-      module._anira_stage_input_tensor(ctx, 0, tensor) !== anira_status.ANIRA_OK ||
-      module._anira_stage_input_ring(ctx, 0, ring) !== anira_status.ANIRA_OK
+      module._anira_processor_input_tensor(ctx, 0, tensor) !== anira_status.ANIRA_OK ||
+      module._anira_processor_input_ring(ctx, 0, ring) !== anira_status.ANIRA_OK
     ) {
       return anira_status.ANIRA_ERROR_INVALID_ARGUMENT
     }

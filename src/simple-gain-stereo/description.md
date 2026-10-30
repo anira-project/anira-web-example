@@ -12,7 +12,7 @@ block) and a Static scalar `gain`, and names the `.onnx` file beside
 it; `simple-gain-stereo.contract.json` is the Hard contract (5 ms per
 inference, 10 warm-up runs). The gain is an AudioParam of the
 handler's audio node, whose render callback hands the model each
-quantum's value. No stage, no JavaScript engine, no worker module.
+quantum's value. No processor, no JavaScript engine, no worker module.
 
 The page loads the module, the context and the configs; the first
 **Play** builds the chain on the running context. It measures the

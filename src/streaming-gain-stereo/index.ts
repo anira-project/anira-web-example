@@ -5,25 +5,16 @@ import { connectDryWet, setupDemoUI } from '../utils/setupDemoUI'
 const audio = new Audio('vibes.mp3')
 const audioContext = createAudioContext(48000)
 
-// -------------------
-// ------ anira ------
-// -------------------
-
 // At load: the module, the context and the configs. The chain waits for the first Play.
 const demo = await loadStreamingGainStereo()
-
-// --------------------
-// ------ Audio -------
-// --------------------
 
 const { removeLoadingIndicator } = setupDemoUI({
   audio,
   audioContext,
-  // The first Play, on the running context: the chain, the pool, the graph.
+  context: demo.context,
+  // The first Play, on the running context: the chain and the graph.
   start: async () => {
     const chain = await demo.start(audioContext)
-    await demo.context.ready() // the pool's Wasm Workers start once this thread yields
-    console.log(`inference threads: ${demo.context.numInferenceThreads()}`)
 
     const sourceNode = audioContext.createMediaElementSource(audio)
     const dry = connectDryWet(audioContext, sourceNode, chain.audioNode.node)

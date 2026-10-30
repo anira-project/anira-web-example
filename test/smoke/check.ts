@@ -1,9 +1,9 @@
 // The package smoke: what every demo relies on, from the linked package as this site's bundler
 // and server deliver it. The module on the page, a context of one Wasm Worker importing a worker
-// module (engine.ts), a JavaScript stage in a worklet module (stage.ts), a Hard handler of block
+// module (engine.ts), a JavaScript processor in a worklet module (processor.ts), a Hard handler of block
 // 128 and an OfflineAudioContext rendered through its audio node: output = 2 * 0.25 * input.
 import {
-  ANIRA_EM_HOOK_PRE,
+  ANIRA_EM_PROCESSOR_HOOK_PRE,
   ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL,
   Anira,
   Context,
@@ -13,11 +13,11 @@ import {
   Pipeline,
 } from '@anira-project/anira'
 import workerModule from './engine.ts?worker&url'
-import stageModule from './stage.ts?worker&url'
+import processorModule from './processor.ts?worker&url'
 import { DOUBLE_ENGINE } from './engine'
-import { QUARTER_STAGE } from './stage'
+import { QUARTER_PROCESSOR } from './processor'
 import { energy, renderOffline, sine, worstError, type Checks } from '../common'
-import { engineName } from '../../src/utils/engineName'
+import { logPlans } from '../../src/utils/anira'
 
 const RATE = 48000
 const QUANTUM = 128
@@ -54,19 +54,16 @@ export const run = async (): Promise<Checks> => {
     { fetchModel: () => false }
   )
   const pipeline = Pipeline.create(anira)
-    .inference(model)
-    .registerEngine(DOUBLE_ENGINE, { flags: ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL })
-    .addStage(QUARTER_STAGE, { phases: ANIRA_EM_HOOK_PRE })
+    .addInference(model)
+    .addEngine(DOUBLE_ENGINE, { flags: ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL })
+    .addProcessor(QUARTER_PROCESSOR, { phases: ANIRA_EM_PROCESSOR_HOOK_PRE })
   const contract = ContractHandle.hard(anira, {
     blockMin: QUANTUM,
     rate: RATE,
     budgetMs: 2,
   })
   const handler = InferenceHandler.create(context, pipeline)
-  const report = handler.prepare(contract) // the plans this prepare compiled
-  for (const plan of report.plans()) {
-    console.log(`plan: ${engineName(plan)}, ${plan.budgetMs} ms budget`)
-  }
+  logPlans(handler.prepare(contract))
   pipeline.destroy()
   contract.destroy()
   const latency = handler.getLatency()
@@ -76,7 +73,7 @@ export const run = async (): Promise<Checks> => {
   const audio = new OfflineAudioContext(1, QUANTUM * QUANTA, RATE)
   const audioNode = await handler.createAudioNode(audio, {
     waitMs: 500,
-    workletModules: [stageModule],
+    workletModules: [processorModule],
   })
   const samples = sine(QUANTUM * QUANTA, RATE)
   const [rendered] = await renderOffline(audio, audioNode.node, [samples])
@@ -87,7 +84,7 @@ export const run = async (): Promise<Checks> => {
   )
   check(
     worst < 1e-6,
-    `the output is the input quartered by the worklet's stage and doubled by the Worker's ` +
+    `the output is the input quartered by the worklet's processor and doubled by the Worker's ` +
       `engine, ${latency} samples later (worst error ${worst})`
   )
 

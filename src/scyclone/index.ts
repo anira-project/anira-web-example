@@ -3,20 +3,13 @@ import { setupControls } from './controls'
 import { createAudioContext } from '../utils/audioContext'
 import { setupDemoUI } from '../utils/setupDemoUI'
 
-// -------------------------------------------------------------------------
-// Boot
-// -------------------------------------------------------------------------
-
 const audio = new Audio('drumloop.mp3')
 const audioContext = createAudioContext(48000)
 
 // At load: the module, the context and the configs. The two streams wait for the first Play.
 const demo = await loadScyclone()
 
-// -------------------------------------------------------------------------
-// Audio graph
-// -------------------------------------------------------------------------
-//
+// The graph:
 //   source ─┬─► dryDelay ──────────────────────────────► dryGain ─┐
 //           │                                                       ├─► dest
 //           └─► inputGain ─┬─► funk node ───► fadeGain1 ─┐         │
@@ -25,11 +18,10 @@ const demo = await loadScyclone()
 const { removeLoadingIndicator } = setupDemoUI({
   audio,
   audioContext,
-  // The first Play, on the running context: the two streams, the pool, the graph.
+  context: demo.context,
+  // The first Play, on the running context: the two streams and the graph.
   start: async () => {
     const chain = await demo.start(audioContext)
-    await demo.context.ready() // the pool's Wasm Workers start once this thread yields
-    console.log(`inference threads: ${demo.context.numInferenceThreads()}`)
 
     const sourceNode = audioContext.createMediaElementSource(audio)
 
@@ -55,10 +47,7 @@ const { removeLoadingIndicator } = setupDemoUI({
     inputGain.connect(chain.djembe.audioNode.node).connect(fadeGain2).connect(wetGain)
     wetGain.connect(audioContext.destination)
 
-    // -----------------------------------------------------------------------
-    // Parameter state + UI
-    // -----------------------------------------------------------------------
-
+    // The fade, mix and input-gain controls.
     setupControls(
       { audioContext, inputGain, fadeGain1, fadeGain2, dryGain, wetGain },
       document.getElementById('controls')!

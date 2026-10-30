@@ -56,16 +56,16 @@ Each demo's anira chain is its `setup.ts`, the page wiring its `index.ts`; the p
 - **JS Callback** — a JavaScript engine (`defineEngine` in the context's worker module) that passes its inputs through, no model; the one demo that starts and stops its own inference threads (`+ / − Worker`).
 - **ONNX Runtime Web Backend** — the stereo gain model on the package's ONNX Runtime Web engine, defined in the worker module and initialised in every inference Worker.
 - **JS Copying** — a class-based JavaScript engine (`src/misc/JSCopyEngine.ts`) copying sample by sample: the template for wrapping another runtime.
-- **PrePostProcessors** — a JavaScript stage in the audio worklet that clamps the gain to 1.0 in `pre_process`.
-- **Steerable-NAFX (CNN)** — a CNN amp model whose receptive field is the model config's declared window and `overlap` (132): no stage, no worklet module.
-- **GuitarLSTM (HybridNN)** — an LSTM amp model on a batch of 2048 overlapping 150-sample windows: the config declares the hop and the history, a JavaScript stage unfolds the batch with one `anira_ring_pop_windows` call.
+- **PrePostProcessors** — a JavaScript processor in the audio worklet that clamps the gain to 1.0 in `pre_process`.
+- **Steerable-NAFX (CNN)** — a CNN amp model whose receptive field is the model config's declared window and `overlap` (132): no processor, no worklet module.
+- **GuitarLSTM (HybridNN)** — an LSTM amp model on a batch of 2048 overlapping 150-sample windows: the config declares the hop and the history, a JavaScript processor unfolds the batch with one `anira_ring_pop_windows` call.
 - **RAVE: Funk & Djembe** — two RAVE models, two handlers on one context (run in parallel by a pool of two or more threads), with a latency-aligned dry path.
 
 Every demo but one creates its context with the default pool of inference threads. JS Callback shows the other way: its context has no pool (`threads: 0`) and its `+ / − Worker` buttons start and stop the page's own `anira_inference_thread_*` threads (`src/utils/inferenceThreads.ts`), because a pool's size is fixed when it is created.
 
 ## What changed from the 2.x demos
 
-Every demo is ported; none is removed. The 2.x custom audio worklets, `JSPrePostProcessor` subclasses, `JSBackendBase` subclasses and custom inference workers are gone: engines live in the context's worker module, stages in a worklet module, windows in the model config. Removed files: the two unused Scyclone worklets (`grain-delay-worklet.ts`, `transient-splitter-worklet.ts`), which the 2.x demo did not load either. `src/misc/JSCopyBackend.ts` is now `src/misc/JSCopyEngine.ts`.
+Every demo is ported; none is removed. The 2.x custom audio worklets, `JSPrePostProcessor` subclasses, `JSBackendBase` subclasses and custom inference workers are gone: engines live in the context's worker module, processors in a worklet module, windows in the model config. Removed files: the two unused Scyclone worklets (`grain-delay-worklet.ts`, `transient-splitter-worklet.ts`), which the 2.x demo did not load either. `src/misc/JSCopyBackend.ts` is now `src/misc/JSCopyEngine.ts`.
 
 How the pages use the latency:
 

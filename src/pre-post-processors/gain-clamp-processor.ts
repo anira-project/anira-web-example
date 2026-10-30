@@ -1,21 +1,21 @@
-// The demo's JavaScript stage: it clamps the model's Static input `gain` to at most 1.0 in
+// The demo's JavaScript processor: it clamps the model's Static input `gain` to at most 1.0 in
 // pre_process, after the default body has popped the audio into the model's input tensor and
 // materialised the Static inputs there. Clamping is idempotent, so it runs on every call. You can
 // hear it working: above 1.0 the slider has no audible effect.
 //
 // One module, two realms: the main thread imports it for prepare and unprepare (they run there),
 // the audio worklet loads it (setup.ts: workletModules) for preProcess, which runs inside the C
-// render callback. Both define the stage under one name; each realm builds its own instance, and
+// render callback. Both define the processor under one name; each realm builds its own instance, and
 // what they share is the shared memory behind the `prepared` pointer.
-import { anira_status, defineStage, layout } from '@anira-project/anira/scope'
+import { anira_status, defineProcessor, layout } from '@anira-project/anira/scope'
 
-/** The stage's name: the pipeline adds it under this name (Pipeline.addStage). */
-export const GAIN_CLAMP_STAGE = 'org.anira-web-example.gain-clamp'
+/** The processor's name: the pipeline adds it under this name (Pipeline.addProcessor). */
+export const GAIN_CLAMP_PROCESSOR = 'org.anira-web-example.gain-clamp'
 
 /** The model config's input slot of the Static `gain`. */
 export const GAIN_SLOT = 1
 
-defineStage(GAIN_CLAMP_STAGE, ({ abi, module }) => ({
+defineProcessor(GAIN_CLAMP_PROCESSOR, ({ abi, module }) => ({
   // Main thread, at the handler's prepare: the tensor record preProcess reads the gain through,
   // allocated here so the audio thread allocates nothing; freed in unprepare.
   prepare(_prepareInfo: number, outPrepared: number): number {
@@ -30,12 +30,13 @@ defineStage(GAIN_CLAMP_STAGE, ({ abi, module }) => ({
   },
 
   // The audio thread, inside the render callback: no allocation, no object literal, no closure
-  // (the stage states ANIRA_STAGE_FLAG_REALTIME_PRE_POST).
+  // (the processor states ANIRA_PROCESSOR_FLAG_REALTIME_PRE_POST).
   preProcess(ctx: number, prepared: number): number {
-    const popped = module._anira_stage_default_pre_process(ctx)
+    const popped = module._anira_processor_default_pre_process(ctx)
     if (popped < 0) return popped
     if (
-      module._anira_stage_input_tensor(ctx, GAIN_SLOT, prepared) !== anira_status.ANIRA_OK
+      module._anira_processor_input_tensor(ctx, GAIN_SLOT, prepared) !==
+      anira_status.ANIRA_OK
     ) {
       return anira_status.ANIRA_ERROR_INVALID_ARGUMENT
     }
