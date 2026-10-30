@@ -30,6 +30,8 @@ npm install
 npm run dev            # or: npm run build && npm run preview
 ```
 
+The RAVE demo's model (126 MB, too large for git) is fetched into `public/rave.onnx` (gitignored) when the dev server or a build starts: `fetch-models.ts`, a Vite plugin, downloads `model_forward.onnx` from the [realtime inference workshop](https://github.com/anira-project/realtime-inference-workshop)'s release `workshop-model` and checks its SHA-256, once (`node fetch-models.ts` runs it alone; `RAVE_MODEL=/path/to/model_forward.onnx` copies a local file instead of downloading).
+
 A rebuild of the package (`npm run build` in `anira/web`) reaches the site without a re-install. The dev server and `vite preview` send `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, which the module's shared `WebAssembly.Memory` needs (`crossOriginIsolated`); on GitHub Pages [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker) stands in for the headers. The full anira build documentation is [Installation / Building](https://anira-project.github.io/anira/web-api/installation_building.html).
 
 ## Tests
@@ -42,7 +44,7 @@ node test/run.mjs chromium build steerable-nafx,steerable-nafx.html   # a subset
 
 `test/run.mjs` builds the site with the check page `test/check.html`, serves it with COOP/COEP and opens, in headless Chromium and Firefox, built and under the dev server:
 
-- every **check** (`test/check.html?check=<demo>`): the demo's own chain (its `setup.ts`) rendered through an `OfflineAudioContext` and its numbers checked — the gain demos against `input × gain`, the passthrough engines against the input, Steerable-NAFX and GuitarLSTM against the same model run over the whole signal by `onnxruntime-web` on the page, RAVE (which samples noise) for finite, latency-aligned model output;
+- every **check** (`test/check.html?check=<demo>`): the demo's own chain (its `setup.ts`) rendered through an `OfflineAudioContext` and its numbers checked — the gain demos against `input × gain`, the passthrough engines against the input, Steerable-NAFX and GuitarLSTM against the same model run over the whole signal by `onnxruntime-web` on the page, RAVE against the same model run by `onnxruntime-web` block by block with its state fed back (the export is deterministic);
 - every **page**: it gets ready and plays after a click on Play (the live output measured on an `AnalyserNode` tap: not silent, silent with the gain at 0); the latency badge and the dry delay agree after the prepare and again after a dispatched `sinkchange` re-prepare; its context's default pool is in its loops (JS Callback: its `+ / − Worker` count up and down); with no console error. Headless Firefox here starts no `AudioContext` (no sound server), so the chain is never built there and it skips the playing, latency and pool steps.
 
 What a person checks by ear: each page in Chrome and Firefox, against the 2.x site.
@@ -59,18 +61,18 @@ Each demo's anira chain is its `setup.ts`, the page wiring its `index.ts`; the p
 - **PrePostProcessors** — a JavaScript stage in the audio worklet that clamps the gain to 1.0 in `pre_process`.
 - **Steerable-NAFX (CNN)** — a CNN amp model whose receptive field is the model config's declared window and `overlap` (132): no stage, no worklet module.
 - **GuitarLSTM (HybridNN)** — an LSTM amp model on a batch of 2048 overlapping 150-sample windows: the config declares the hop and the history, a JavaScript stage unfolds the batch with one `anira_ring_pop_windows` call.
-- **RAVE: Funk & Djembe** — two RAVE models, two handlers on one context (run in parallel by a pool of two or more threads), with a latency-aligned dry path.
+- **RAVE: Magnetic Resonator Piano** — a streaming RAVE model (the realtime inference workshop's export) whose convolution caches are one state tensor: the model config declares the pair (`role: "state"`, `state_source`) and the model's own latency (2224 samples), so anira carries the state between the 2048-sample inferences; with a latency-aligned dry path.
 
 Every demo but one creates its context with the default pool of inference threads. JS Callback shows the other way: its context has no pool (`threads: 0`) and its `+ / − Worker` buttons start and stop the page's own `anira_inference_thread_*` threads (`src/utils/inferenceThreads.ts`), because a pool's size is fixed when it is created.
 
 ## What changed from the 2.x demos
 
-Every demo is ported; none is removed. The 2.x custom audio worklets, `JSPrePostProcessor` subclasses, `JSBackendBase` subclasses and custom inference workers are gone: engines live in the context's worker module, stages in a worklet module, windows in the model config. Removed files: the two unused Scyclone worklets (`grain-delay-worklet.ts`, `transient-splitter-worklet.ts`), which the 2.x demo did not load either. `src/misc/JSCopyBackend.ts` is now `src/misc/JSCopyEngine.ts`.
+Every demo is ported but RAVE: Funk & Djembe, whose two stateless models (16384-sample windows, each processed alone) gave way to the stateful RAVE model of the workshop. The 2.x custom audio worklets, `JSPrePostProcessor` subclasses, `JSBackendBase` subclasses and custom inference workers are gone: engines live in the context's worker module, stages in a worklet module, windows in the model config. Removed files: the two unused Scyclone worklets (`grain-delay-worklet.ts`, `transient-splitter-worklet.ts`), which the 2.x demo did not load either. `src/misc/JSCopyBackend.ts` is now `src/misc/JSCopyEngine.ts`.
 
 How the pages use the latency:
 
 - `start` measures the context's render geometry (`measureRenderGeometry`: its render quantum, and the burst of quanta a live context renders back to back) and sets it on the contract before the handler's prepare, so the latency the handler reports covers a burst; prepared for one quantum alone, a handler misses the quanta of each burst past its latency.
-- Every page shows the handler's latency, read after the prepare, in a badge ("Latency: N samples (x ms)"), and its dry path goes through a `DelayNode` set to `latency / sampleRate`, so Dry / Wet compares the same moment of the input. RAVE's dry path waits for the slower of its two models.
+- Every page shows the handler's latency, read after the prepare, in a badge ("Latency: N samples (x ms)"), and its dry path goes through a `DelayNode` set to `latency / sampleRate`, so Dry / Wet compares the same moment of the input.
 - On `sinkchange` (the page switched the output device) the page measures again, re-prepares the running node (`audioNode.prepare(contract)`, which holds the node off meanwhile; the graph stays connected) and updates the delay and the badge. That is the page's call: an OS default-device change may fire no event.
 
 ## Links

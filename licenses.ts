@@ -19,45 +19,29 @@ const PACKAGES_WITH_BUNDLED_LICENSES = ['@anira-project/anira']
 // Each entry is rendered into THIRD_PARTY_LICENSES.txt verbatim.
 const MANUAL_ATTRIBUTIONS = [
   {
-    name: 'Scyclone',
+    name: 'Magnetic resonator piano RAVE model (Intelligent Instruments Lab)',
     version: '',
-    homepage: 'https://github.com/Torsion-Audio/Scyclone',
-    license: 'MIT (ported source) AND CC-BY-NC-4.0 (bundled .onnx models)',
-    licenseText: `Scyclone is multi-licensed (GPL-3.0 OR MIT OR CC-BY-NC-4.0).
-SPDX-License-Identifier: GPL-3.0 OR MIT OR CC-BY-NC-4.0
-See: https://github.com/Torsion-Audio/Scyclone/blob/main/LICENSE.md
+    homepage: 'https://huggingface.co/Intelligent-Instruments-Lab/rave-models',
+    license: 'CC-BY-NC-4.0',
+    licenseText: `The RAVE demo's model file rave.onnx, served from /public, is
+model_forward.onnx of anira's realtime inference workshop
+(https://github.com/anira-project/realtime-inference-workshop, release
+"workshop-model"), fetched at build time by fetch-models.ts.
 
-What is reused in this demo, and under which license:
+It is a re-export of the Intelligent Instruments Lab's magnetic resonator
+piano model mrp_strengjavera_b2048_r44100_z16.ts
+(https://huggingface.co/Intelligent-Instruments-Lab/rave-models), a RAVE
+model (https://github.com/acids-ircam/RAVE), licensed under Creative
+Commons Attribution-NonCommercial 4.0 International (CC-BY-NC-4.0).
 
-  1. The ONNX model files funk_drums.onnx and djembe.onnx, served from
-     /public, are copied verbatim from Scyclone/assets/models/. These are
-     licensed under Creative Commons Attribution-NonCommercial 4.0
-     International (CC-BY-NC-4.0). This demo is non-commercial; downstream
-     redistribution must preserve attribution and the NonCommercial term.
+Changes made: the workshop's scripts/export_model.py re-runs the model from
+its TorchScript weights with every convolution cache passed in and out as
+one state tensor, and exports it to ONNX; the encoder takes the posterior
+mean and the decoder fills the cropped latent dimensions with zeros, where
+the original samples noise. The weights are unchanged.
 
-------------------------------------------------------------------------
-MIT License (applies to the ported transient splitter / envelope code):
-
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-
-------------------------------------------------------------------------
-CC-BY-NC-4.0 (applies to funk_drums.onnx and djembe.onnx):
+This demo is non-commercial; downstream redistribution must preserve
+attribution and the NonCommercial term.
 
 Full text: https://creativecommons.org/licenses/by-nc/4.0/legalcode
 
@@ -65,9 +49,8 @@ Summary: You are free to share and adapt the material for any
 non-commercial purpose, provided you give appropriate credit, link to the
 license, and indicate if changes were made.
 
-Attribution: "Scyclone — Torsion-Audio
-(https://github.com/Torsion-Audio/Scyclone)". Models are bundled
-unmodified.
+Attribution: "Magnetic resonator piano RAVE model — Intelligent Instruments
+Lab (https://huggingface.co/Intelligent-Instruments-Lab/rave-models)".
 `,
   },
 ] satisfies Array<{

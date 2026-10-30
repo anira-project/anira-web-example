@@ -1,0 +1,61 @@
+import { loadRave } from './setup'
+import { setupControls } from './controls'
+import { createAudioContext } from '../utils/audioContext'
+import { setupDemoUI } from '../utils/setupDemoUI'
+
+// -------------------------------------------------------------------------
+// Boot
+// -------------------------------------------------------------------------
+
+const audio = new Audio('drumloop.mp3')
+// The model is trained at 44.1 kHz: the context runs at its rate.
+const audioContext = createAudioContext(44100)
+
+// At load: the module, the context and the configs. The chain waits for the first Play.
+const demo = await loadRave()
+
+// -------------------------------------------------------------------------
+// Audio graph
+// -------------------------------------------------------------------------
+//
+//   source ─┬─► dryDelay ─────────────────────► dryGain ─┐
+//           │                                            ├─► destination
+//           └─► inputGain ─► RAVE node ─────► wetGain ──┘
+
+const { removeLoadingIndicator } = setupDemoUI({
+  audio,
+  audioContext,
+  // The first Play, on the running context: the chain, the pool, the graph.
+  start: async () => {
+    const chain = await demo.start(audioContext)
+    await demo.context.ready() // the pool's Wasm Workers start once this thread yields
+    console.log(`inference threads: ${demo.context.threads}`)
+
+    const sourceNode = audioContext.createMediaElementSource(audio)
+
+    // The dry path waits for the model: setupDemoUI sets the delay to the handler's latency,
+    // now and after a re-prepare.
+    const dryDelay = new DelayNode(audioContext, { maxDelayTime: 2 })
+    const dryGain = audioContext.createGain()
+    const wetGain = audioContext.createGain()
+
+    // Stereo → mono downmix before the model.
+    const inputGain = audioContext.createGain()
+    inputGain.channelCount = 1
+    inputGain.channelCountMode = 'explicit'
+    inputGain.channelInterpretation = 'speakers'
+
+    sourceNode.connect(dryDelay).connect(dryGain).connect(audioContext.destination)
+    sourceNode.connect(inputGain).connect(chain.audioNode.node).connect(wetGain)
+    wetGain.connect(audioContext.destination)
+
+    setupControls(
+      { audioContext, inputGain, dryGain, wetGain },
+      document.getElementById('controls')!
+    )
+    return { latency: chain.latency, remeasure: chain.remeasure, dry: dryDelay }
+  },
+})
+
+removeLoadingIndicator()
+console.log('RAVE demo initialised.')

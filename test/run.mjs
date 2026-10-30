@@ -36,7 +36,7 @@ const CHECKS = [
   'js-callback',
   'js-copying',
   'guitar-lstm',
-  'scyclone',
+  'rave',
 ]
 const PAGES = ['index.html', 'licenses.html']
 // The demo pages: they build an anira chain on load and have a Play button.
@@ -49,7 +49,7 @@ const DEMOS = [
   'js-callback.html',
   'js-copying.html',
   'guitar-lstm.html',
-  'scyclone.html',
+  'rave.html',
 ]
 
 const types = {
