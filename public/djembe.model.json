@@ -1,6 +1,5 @@
 {
   "models": [{ "engine": "onnxruntime", "path": "djembe.onnx" }],
-  "max_instances": 1,
   "inputs": [
     {
       "name": "audio_in",

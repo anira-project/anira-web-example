@@ -60,6 +60,34 @@ export const run = async (): Promise<Checks> => {
     )
   }
 
+  // The memory the two models' instances took: the module's heap (it grows from 256 MiB) and,
+  // where the browser measures it, the page's (measureUserAgentSpecificMemory).
+  const mib = (bytes: number) => (bytes / 2 ** 20).toFixed(0)
+  const heap = demo.anira.memory.buffer.byteLength
+  // measureUserAgentSpecificMemory: Chromium only, and refused (SecurityError) where the page
+  // does not qualify; then the heap alone.
+  const measure = (
+    performance as { measureUserAgentSpecificMemory?: () => Promise<{ bytes: number }> }
+  ).measureUserAgentSpecificMemory
+  let page: number | null = null
+  try {
+    if (measure)
+      page = await Promise.race([
+        measure.call(performance).then((result) => result.bytes),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 30000)),
+      ])
+  } catch {
+    page = null
+  }
+  check(
+    heap > 0,
+    `memory with ${demo.context.threads} inference threads: the module's heap is ${mib(heap)} ` +
+      `MiB` +
+      (page === null
+        ? ''
+        : `, the page ${mib(page)} MiB (measureUserAgentSpecificMemory)`)
+  )
+
   demo.teardown()
   check(true, 'the demo tore down (the two nodes, the handlers, the context)')
   return checks

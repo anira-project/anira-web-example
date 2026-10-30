@@ -1,5 +1,6 @@
 import { loadScyclone } from './setup'
 import { setupControls } from './controls'
+import { createAudioContext } from '../utils/audioContext'
 import { setupDemoUI } from '../utils/setupDemoUI'
 
 // -------------------------------------------------------------------------
@@ -7,7 +8,7 @@ import { setupDemoUI } from '../utils/setupDemoUI'
 // -------------------------------------------------------------------------
 
 const audio = new Audio('drumloop.mp3')
-const audioContext = new AudioContext({ sampleRate: 48000 })
+const audioContext = createAudioContext(48000)
 
 // At load: the module, the context and the configs. The two streams wait for the first Play.
 const demo = await loadScyclone()

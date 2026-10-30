@@ -1,6 +1,5 @@
 {
   "models": [{ "engine": "onnxruntime", "path": "funk_drums.onnx" }],
-  "max_instances": 1,
   "inputs": [
     {
       "name": "audio_in",

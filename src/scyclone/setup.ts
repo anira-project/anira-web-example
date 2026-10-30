@@ -58,12 +58,7 @@ export async function loadScyclone(): Promise<Scyclone> {
   const context = Context.create(anira)
 
   // 3. The configs, one per model, both under the same contract file: 341.3 ms per inference
-  //    (16384 samples at 48 kHz), 2 warm-up runs. Each model config sets "max_instances": 1,
-  //    one loaded copy of the model. The default is one instance per pool thread, and the
-  //    default pool is half the cores (16 Workers in Chromium and 8 in Firefox on a 32-core
-  //    machine): 8 or more instances of the two 16 MB RAVE models ran out of the module's
-  //    512 MiB memory (Aborted(OOM)), 6 or fewer did not. With one instance each, two of the
-  //    pool's threads run the two models in parallel.
+  //    (16384 samples at 48 kHz), 2 warm-up runs.
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const models = [
     await ModelConfig.fromUrl(anira, new URL('funk-drums.model.json', site)),
@@ -96,9 +91,13 @@ export async function loadScyclone(): Promise<Scyclone> {
     const latency = () => Math.max(funk.latency(), djembe.latency())
     console.log(`latency: ${funk.latency()} and ${djembe.latency()} samples`)
 
-    // 6. After an output-device change: measure with the probe, re-prepare both running nodes.
+    // 6. After an output-device change: measure again, holding both running nodes meanwhile
+    //    (silent, so their rendering does not hide the device's callbacks from the probe),
+    //    and re-prepare them for the new geometry.
     const remeasure = async () => {
-      const g = await measureRenderGeometry(audioContext, { probe: true })
+      const g = await measureRenderGeometry(audioContext, {
+        hold: [funk.audioNode, djembe.audioNode],
+      })
       contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
       for (const { audioNode } of [funk, djembe]) audioNode.prepare(contract)
       console.log(`latency: ${funk.latency()} and ${djembe.latency()} samples`)

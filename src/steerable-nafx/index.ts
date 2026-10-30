@@ -1,8 +1,9 @@
 import { loadSteerableNafx } from './setup'
+import { createAudioContext } from '../utils/audioContext'
 import { connectDryWet, setupDemoUI } from '../utils/setupDemoUI'
 
 const audio = new Audio('guitar.mp3')
-const audioContext = new AudioContext({ sampleRate: 44100 })
+const audioContext = createAudioContext(44100)
 
 // -------------------
 // ------ anira ------

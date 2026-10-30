@@ -95,10 +95,11 @@ export async function loadGainClamp(): Promise<GainClamp> {
     const gain = audioNode.params.get(GAIN_SLOT)!
     gain.value = 1
 
-    // 7. After an output-device change: measure with the probe, re-prepare the running node
-    //    (the stage's unprepare and prepare run again, here).
+    // 7. After an output-device change: measure again, holding the running node meanwhile
+    //    (silent, so its rendering does not hide the device's callbacks from the probe), and
+    //    re-prepare it for the new geometry (it holds off while the handler re-prepares).
     const remeasure = async () => {
-      const g = await measureRenderGeometry(audioContext, { probe: true })
+      const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
       contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
       audioNode.prepare(contract)
       console.log(`latency: ${handler.latency()} samples`)

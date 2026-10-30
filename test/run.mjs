@@ -319,7 +319,15 @@ const runPage = async (browser, base, pathname, demo) => {
         await page.evaluate(() =>
           window.anira_test_context.dispatchEvent(new Event('sinkchange'))
         )
-        await page.waitForTimeout(2000)
+        // The re-measure (a probe of ~400 ms, the nodes held) and the re-prepare (with its
+        // warm-up) log the new latency when done.
+        const deadline = Date.now() + 60000
+        while (
+          Date.now() < deadline &&
+          !logs.slice(before).some((text) => /latency/.test(text))
+        )
+          await page.waitForTimeout(250)
+        await page.waitForTimeout(500)
         const remeasured = logs.slice(before).some((text) => /latency/.test(text))
         if (remeasured) console.log('ok: sinkchange re-measured and re-prepared the node')
         else fail('sinkchange did not re-prepare the node')

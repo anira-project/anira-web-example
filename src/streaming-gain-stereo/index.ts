@@ -1,8 +1,9 @@
 import { loadStreamingGainStereo } from './setup'
+import { createAudioContext } from '../utils/audioContext'
 import { connectDryWet, setupDemoUI } from '../utils/setupDemoUI'
 
 const audio = new Audio('vibes.mp3')
-const audioContext = new AudioContext({ sampleRate: 48000 })
+const audioContext = createAudioContext(48000)
 
 // -------------------
 // ------ anira ------

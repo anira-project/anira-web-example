@@ -85,11 +85,11 @@ export async function loadSimpleGainStereo(): Promise<SimpleGainStereo> {
     const gain = audioNode.params.get(GAIN_SLOT)!
     gain.value = 1
 
-    // 7. After an output-device change: measure with the probe (Chromium keeps the baseLatency
-    //    of the device the context was created on), re-prepare the running node (it holds off,
-    //    silent, meanwhile) and the latency changes with it.
+    // 7. After an output-device change: measure again, holding the running node meanwhile
+    //    (silent, so its rendering does not hide the device's callbacks from the probe), and
+    //    re-prepare it for the new geometry (it holds off while the handler re-prepares).
     const remeasure = async () => {
-      const g = await measureRenderGeometry(audioContext, { probe: true })
+      const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
       contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
       audioNode.prepare(contract)
       console.log(`latency: ${handler.latency()} samples`)
