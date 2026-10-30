@@ -18,13 +18,13 @@ export const run = async (): Promise<Checks> => {
   const audio = new OfflineAudioContext(2, length, RATE)
   const loaded = await loadScyclone()
   const chain = await loaded.start(audio, { waitMs: 3000 })
-  const demo = { ...loaded, ...chain, latency: chain.latency() }
+  const demo = { ...loaded, ...chain, latency: chain.getLatency() }
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()
   check(
-    demo.context.threads >= 1,
-    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+    demo.context.numInferenceThreads() >= 1,
+    `the context's default pool of ${demo.context.numInferenceThreads()} inference threads is in its loops`
   )
 
   const samples = sine(length, RATE, 110, 0.5)
@@ -43,7 +43,7 @@ export const run = async (): Promise<Checks> => {
     [1, 'djembe', demo.djembe],
   ] as const) {
     const out = rendered.getChannelData(c)
-    const latency = stream.latency()
+    const latency = stream.getLatency()
     const head = out.subarray(0, Math.min(latency, out.length))
     const tail = out.subarray(latency)
     let bypassed = 0
@@ -81,7 +81,7 @@ export const run = async (): Promise<Checks> => {
   }
   check(
     heap > 0,
-    `memory with ${demo.context.threads} inference threads: the module's heap is ${mib(heap)} ` +
+    `memory with ${demo.context.numInferenceThreads()} inference threads: the module's heap is ${mib(heap)} ` +
       `MiB` +
       (page === null
         ? ''

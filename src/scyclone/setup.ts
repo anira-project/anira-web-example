@@ -1,8 +1,8 @@
 import {
   Anira,
   Context,
-  Contract,
-  Handler,
+  ContractHandle,
+  InferenceHandler,
   ModelConfig,
   Pipeline,
   measureRenderGeometry,
@@ -12,7 +12,7 @@ import type { AniraAudioNode } from '@anira-project/anira'
 /** One RAVE model's stream: its audio node and its handler's latency in samples. */
 export type RaveStream = {
   audioNode: AniraAudioNode
-  latency: () => number
+  getLatency: () => number
 }
 
 /** The two streams on a running context: what `start` returns. */
@@ -20,7 +20,7 @@ export type ScycloneChain = {
   funk: RaveStream
   djembe: RaveStream
   /** The larger of the two latencies: what the dry path waits for, in samples. */
-  latency: () => number
+  getLatency: () => number
   /** Measure the context's render geometry again and re-prepare both running nodes. */
   remeasure: () => Promise<void>
   teardown: () => void
@@ -47,7 +47,7 @@ export type Scyclone = {
 export async function loadScyclone(): Promise<Scyclone> {
   // 1. The module on this thread and its log, to the console.
   const anira = await Anira.create()
-  anira.setLogHook()
+  anira.setLogSink()
   const stopLogPump = anira.startLogPump()
 
   // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
@@ -64,20 +64,27 @@ export async function loadScyclone(): Promise<Scyclone> {
     await ModelConfig.fromUrl(anira, new URL('funk-drums.model.json', site)),
     await ModelConfig.fromUrl(anira, new URL('djembe.model.json', site)),
   ]
-  const contract = await Contract.fromUrl(anira, new URL('rave.contract.json', site))
+  const contract = await ContractHandle.fromUrl(
+    anira,
+    new URL('rave.contract.json', site)
+  )
 
   const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
     // 4. The geometry, measured on the running context: one render quantum per call, blocks up
     //    to the burst it renders back to back, so the latency each handler reports covers it.
     const geometry = await measureRenderGeometry(audioContext)
-    contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
+    contract.hardGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
     // 5. One handler per model, both prepared under the contract (each copies it), and its
     //    audio node: mono in and out. An offline render waits for its inferences: the pool
     //    first.
     const handlers = models.map((model) => {
-      const pipeline = Pipeline.create(anira).addInference(model)
-      const handler = Handler.create(context, pipeline).prepare(contract)
+      const pipeline = Pipeline.create(anira).inference(model)
+      const handler = InferenceHandler.create(context, pipeline)
+      const report = handler.prepare(contract) // the plans this prepare compiled
+      for (const plan of report.plans()) {
+        console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+      }
       pipeline.destroy()
       return handler
     })
@@ -85,11 +92,11 @@ export async function loadScyclone(): Promise<Scyclone> {
     const [funk, djembe] = await Promise.all(
       handlers.map(async (handler): Promise<RaveStream> => {
         const audioNode = await handler.createAudioNode(audioContext, { waitMs })
-        return { audioNode, latency: () => handler.latency() }
+        return { audioNode, getLatency: () => handler.getLatency() }
       })
     )
-    const latency = () => Math.max(funk.latency(), djembe.latency())
-    console.log(`latency: ${funk.latency()} and ${djembe.latency()} samples`)
+    const getLatency = () => Math.max(funk.getLatency(), djembe.getLatency())
+    console.log(`latency: ${funk.getLatency()} and ${djembe.getLatency()} samples`)
 
     // 6. After an output-device change: measure again, holding both running nodes meanwhile
     //    (silent, so their rendering does not hide the device's callbacks from the probe),
@@ -98,9 +105,9 @@ export async function loadScyclone(): Promise<Scyclone> {
       const g = await measureRenderGeometry(audioContext, {
         hold: [funk.audioNode, djembe.audioNode],
       })
-      contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
       for (const { audioNode } of [funk, djembe]) audioNode.prepare(contract)
-      console.log(`latency: ${funk.latency()} and ${djembe.latency()} samples`)
+      console.log(`latency: ${funk.getLatency()} and ${djembe.getLatency()} samples`)
     }
 
     // 7. The teardown, in reverse: the nodes stop calling their handlers first.
@@ -115,7 +122,7 @@ export async function loadScyclone(): Promise<Scyclone> {
       context.destroy()
       stopLogPump()
     }
-    return { funk, djembe, latency, remeasure, teardown }
+    return { funk, djembe, getLatency, remeasure, teardown }
   }
   return { anira, context, start }
 }

@@ -7,8 +7,8 @@ import {
   ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL,
   Anira,
   Context,
-  Contract,
-  Handler,
+  ContractHandle,
+  InferenceHandler,
   ModelConfig,
   Pipeline,
 } from '@anira-project/anira'
@@ -27,7 +27,7 @@ export const run = async (): Promise<Checks> => {
   const check = (ok: boolean, what: string) => checks.push({ ok, what })
 
   const anira = await Anira.create()
-  anira.setLogHook()
+  anira.setLogSink()
   const stopLogPump = anira.startLogPump()
   check(anira.version.length > 0, `the module is anira ${anira.version}`)
 
@@ -53,14 +53,22 @@ export const run = async (): Promise<Checks> => {
     { fetchModel: () => false }
   )
   const pipeline = Pipeline.create(anira)
-    .addInference(model)
+    .inference(model)
     .registerEngine(DOUBLE_ENGINE, { flags: ANIRA_ENGINE_FLAG_NEEDS_NO_MODEL })
-    .addStage(QUARTER_STAGE, { hooks: ANIRA_EM_HOOK_PRE })
-  const contract = Contract.hard(anira, { blockMin: QUANTUM, rate: RATE, budgetMs: 2 })
-  const handler = Handler.create(context, pipeline).prepare(contract)
+    .addStage(QUARTER_STAGE, { phases: ANIRA_EM_HOOK_PRE })
+  const contract = ContractHandle.hard(anira, {
+    blockMin: QUANTUM,
+    rate: RATE,
+    budgetMs: 2,
+  })
+  const handler = InferenceHandler.create(context, pipeline)
+  const report = handler.prepare(contract) // the plans this prepare compiled
+  for (const plan of report.plans()) {
+    console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+  }
   pipeline.destroy()
   contract.destroy()
-  const latency = handler.latency()
+  const latency = handler.getLatency()
   await context.ready()
   check(true, `the worker module's Wasm Worker is in its loop (latency ${latency})`)
 

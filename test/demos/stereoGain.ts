@@ -24,7 +24,7 @@ export type StereoGainDemo = {
   ) => Promise<{
     audioNode: AniraAudioNode
     gain: AudioParam
-    latency: () => number
+    getLatency: () => number
     teardown: () => void
   }>
 }
@@ -39,13 +39,13 @@ export const checkStereoGain = async (
   const audio = new OfflineAudioContext(2, QUANTUM * QUANTA, RATE)
   const loaded = await load()
   const chain = await loaded.start(audio, { waitMs: 500 })
-  const demo = { ...loaded, ...chain, latency: chain.latency() }
+  const demo = { ...loaded, ...chain, latency: chain.getLatency() }
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()
   check(
-    demo.context.threads >= 1,
-    `the context's default pool of ${demo.context.threads} inference threads is in its loops`
+    demo.context.numInferenceThreads() >= 1,
+    `the context's default pool of ${demo.context.numInferenceThreads()} inference threads is in its loops`
   )
 
   demo.gain.setValueAtTime(GAIN_BEFORE, 0)

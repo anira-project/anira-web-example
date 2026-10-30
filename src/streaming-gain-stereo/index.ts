@@ -23,7 +23,7 @@ const { removeLoadingIndicator } = setupDemoUI({
   start: async () => {
     const chain = await demo.start(audioContext)
     await demo.context.ready() // the pool's Wasm Workers start once this thread yields
-    console.log(`inference threads: ${demo.context.threads}`)
+    console.log(`inference threads: ${demo.context.numInferenceThreads()}`)
 
     const sourceNode = audioContext.createMediaElementSource(audio)
     const dry = connectDryWet(audioContext, sourceNode, chain.audioNode.node)
@@ -37,7 +37,7 @@ const { removeLoadingIndicator } = setupDemoUI({
     offset.connect(chain.audioNode.node, 0, 1)
     lfo.start()
     offset.start()
-    return { latency: chain.latency, remeasure: chain.remeasure, dry }
+    return { getLatency: chain.getLatency, remeasure: chain.remeasure, dry }
   },
 })
 

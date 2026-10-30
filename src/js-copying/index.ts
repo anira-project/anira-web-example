@@ -24,10 +24,10 @@ const { removeLoadingIndicator } = setupDemoUI({
   start: async () => {
     const chain = await demo.start(audioContext)
     await demo.context.ready() // the pool's Wasm Workers start once this thread yields
-    console.log(`inference threads: ${demo.context.threads}`)
+    console.log(`inference threads: ${demo.context.numInferenceThreads()}`)
     const sourceNode = audioContext.createMediaElementSource(audio)
     const dry = connectDryWet(audioContext, sourceNode, chain.audioNode.node)
-    return { latency: chain.latency, remeasure: chain.remeasure, dry }
+    return { getLatency: chain.getLatency, remeasure: chain.remeasure, dry }
   },
 })
 

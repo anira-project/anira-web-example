@@ -3,10 +3,10 @@ import type { InferenceThreads } from './inferenceThreads'
 /** What a page's `start` hands back: how its dry path and the latency badge follow the chain. */
 export type StartedDemo = {
   /** The latency the dry path waits for, in samples: the handler's, read after its prepare. */
-  latency: () => number
+  getLatency: () => number
   /** Measure the context's render geometry again and re-prepare the running node(s). */
   remeasure: () => Promise<void>
-  /** The dry path's delay, set to `latency() / sampleRate`. */
+  /** The dry path's delay, set to `getLatency() / sampleRate`. */
   dry: DelayNode
 }
 
@@ -43,7 +43,7 @@ export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptio
 
   let started: StartedDemo | null = null
   const applyLatency = (demo: StartedDemo) => {
-    const samples = demo.latency()
+    const samples = demo.getLatency()
     demo.dry.delayTime.value = samples / audioContext.sampleRate
     const ms = (1000 * samples) / audioContext.sampleRate
     latencyBadge.textContent = `Latency: ${samples} samples (${ms.toFixed(1)} ms)`

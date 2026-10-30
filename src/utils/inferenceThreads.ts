@@ -27,7 +27,7 @@ export class InferenceThreads {
   /** Start one more thread (`anira_inference_thread_create`, `_start`). */
   add(): void {
     const { abi } = this.anira
-    const thread = abi.anira_inference_thread_create(this.context.ptr)
+    const thread = abi.anira_inference_thread_create(this.context.native())
     try {
       abi.anira_inference_thread_start(thread)
     } catch (error) {

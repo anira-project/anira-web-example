@@ -4,8 +4,8 @@ import {
   ANIRA_EM_HOOK_UNPREPARE,
   Anira,
   Context,
-  Contract,
-  Handler,
+  ContractHandle,
+  InferenceHandler,
   ModelConfig,
   Pipeline,
   measureRenderGeometry,
@@ -22,7 +22,7 @@ export type GainClampChain = {
   /** The gain's AudioParam, before the stage's clamp. */
   gain: AudioParam
   /** The handler's latency in samples: the output is the input this much later. */
-  latency: () => number
+  getLatency: () => number
   /** Measure the context's render geometry again and re-prepare the running node. */
   remeasure: () => Promise<void>
   teardown: () => void
@@ -48,7 +48,7 @@ export type GainClamp = {
 export async function loadGainClamp(): Promise<GainClamp> {
   // 1. The module on this thread and its log, to the console.
   const anira = await Anira.create()
-  anira.setLogHook()
+  anira.setLogSink()
   const stopLogPump = anira.startLogPump()
 
   // 2. A context with the default pool of inference threads (Wasm Workers). The built-in
@@ -61,7 +61,7 @@ export async function loadGainClamp(): Promise<GainClamp> {
     anira,
     new URL('simple-gain-stereo.model.json', site)
   )
-  const contract = await Contract.fromUrl(
+  const contract = await ContractHandle.fromUrl(
     anira,
     new URL('simple-gain-stereo.contract.json', site)
   )
@@ -70,19 +70,23 @@ export async function loadGainClamp(): Promise<GainClamp> {
     // 4. The geometry, measured on the running context: one render quantum per call, blocks up
     //    to the burst it renders back to back, so the latency the handler reports covers it.
     const geometry = await measureRenderGeometry(audioContext)
-    contract.setGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
+    contract.hardGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
     // 5. The pipeline with the JavaScript stage, under the name its module defines it by: its
     //    pre_process crosses into the worklet, prepare and unprepare into this thread. The stage
     //    states ANIRA_STAGE_FLAG_REALTIME_PRE_POST (the default), which a Hard contract requires.
     const pipeline = Pipeline.create(anira)
-      .addInference(model)
+      .inference(model)
       .addStage(GAIN_CLAMP_STAGE, {
-        hooks: ANIRA_EM_HOOK_PRE | ANIRA_EM_HOOK_PREPARE | ANIRA_EM_HOOK_UNPREPARE,
+        phases: ANIRA_EM_HOOK_PRE | ANIRA_EM_HOOK_PREPARE | ANIRA_EM_HOOK_UNPREPARE,
       })
-    const handler = Handler.create(context, pipeline).prepare(contract)
+    const handler = InferenceHandler.create(context, pipeline)
+    const report = handler.prepare(contract) // the plans this prepare compiled
+    for (const plan of report.plans()) {
+      console.log(`plan: engine ${plan.engine}, ${plan.budgetMs} ms budget`)
+    }
     pipeline.destroy()
-    console.log(`latency: ${handler.latency()} samples`)
+    console.log(`latency: ${handler.getLatency()} samples`)
 
     // 6. The audio node: the stage's module loaded into the worklet first, the gain an
     //    AudioParam. An offline render waits for its inferences: the pool first.
@@ -100,9 +104,9 @@ export async function loadGainClamp(): Promise<GainClamp> {
     //    re-prepare it for the new geometry (it holds off while the handler re-prepares).
     const remeasure = async () => {
       const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
-      contract.setGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
       audioNode.prepare(contract)
-      console.log(`latency: ${handler.latency()} samples`)
+      console.log(`latency: ${handler.getLatency()} samples`)
     }
 
     // 8. The teardown, in reverse: the node stops calling the handler first.
@@ -115,7 +119,13 @@ export async function loadGainClamp(): Promise<GainClamp> {
       context.destroy()
       stopLogPump()
     }
-    return { audioNode, gain, latency: () => handler.latency(), remeasure, teardown }
+    return {
+      audioNode,
+      gain,
+      getLatency: () => handler.getLatency(),
+      remeasure,
+      teardown,
+    }
   }
   return { anira, context, start }
 }

@@ -29,11 +29,11 @@ const { removeLoadingIndicator } = setupDemoUI({
   start: async () => {
     const chain = await demo.start(audioContext)
     await demo.context.ready() // the pool's Wasm Workers start once this thread yields
-    console.log(`inference threads: ${demo.context.threads}`)
+    console.log(`inference threads: ${demo.context.numInferenceThreads()}`)
 
     const sourceNode = audioContext.createMediaElementSource(audio)
 
-    // The dry path waits for the slower model: setupDemoUI sets the delay to chain.latency(),
+    // The dry path waits for the slower model: setupDemoUI sets the delay to chain.getLatency(),
     // the larger of the two handlers' latencies, now and after a re-prepare.
     const dryDelay = new DelayNode(audioContext, { maxDelayTime: 2 })
 
@@ -63,7 +63,7 @@ const { removeLoadingIndicator } = setupDemoUI({
       { audioContext, inputGain, fadeGain1, fadeGain2, dryGain, wetGain },
       document.getElementById('controls')!
     )
-    return { latency: chain.latency, remeasure: chain.remeasure, dry: dryDelay }
+    return { getLatency: chain.getLatency, remeasure: chain.remeasure, dry: dryDelay }
   },
 })
 

@@ -14,7 +14,7 @@ Two [RAVE](https://github.com/acids-ircam/RAVE) neural synthesis models — one 
 | Stereo → mono downmix | `inputGain` GainNode with `channelCount=1`, `channelInterpretation='speakers'` |
 | Fade crossfade | `fadeGain1` / `fadeGain2` with gains summing to 1 |
 | Master dry/wet crossfade | `dryGain` / `wetGain` with gains summing to 1, both connected to `destination` |
-| Latency compensation | `dryDelay` — a `DelayNode` on the dry path matching model latency, so dry and wet stay time-aligned. The sample count is the handler's `latency()`, which anira derives from the model config and the contract during `prepare()` ([latency model docs](https://anira-project.github.io/anira/latency.html)): it accounts for the alignment between the host's block and the model's 16384-sample window, plus the blocks that pass while the model is inferring (the contract's budget of 341.3 ms). |
+| Latency compensation | `dryDelay` — a `DelayNode` on the dry path matching model latency, so dry and wet stay time-aligned. The sample count is the handler's `getLatency()`, which anira derives from the model config and the contract during `prepare()` (whose `PlanReport` names the plan and its budget) ([latency model docs](https://anira-project.github.io/anira/latency.html)): it accounts for the alignment between the host's block and the model's 16384-sample window, plus the blocks that pass while the model is inferring (the contract's budget of 341.3 ms). |
 
 ## Notes
 

@@ -16,7 +16,11 @@ export type PassthroughDemo = {
   start: (
     audio: BaseAudioContext,
     options: { waitMs: number }
-  ) => Promise<{ audioNode: AniraAudioNode; latency: () => number; teardown: () => void }>
+  ) => Promise<{
+    audioNode: AniraAudioNode
+    getLatency: () => number
+    teardown: () => void
+  }>
 }
 
 export const checkPassthrough = async (
@@ -29,13 +33,13 @@ export const checkPassthrough = async (
   const audio = new OfflineAudioContext(2, QUANTUM * QUANTA, RATE)
   const loaded = await load()
   const chain = await loaded.start(audio, { waitMs: 500 })
-  const demo = { ...loaded, ...chain, latency: chain.latency() }
+  const demo = { ...loaded, ...chain, latency: chain.getLatency() }
   // JS Callback starts its own inference thread (a context without a pool); JS Copying has the
   // context's default pool. Either way the Workers must be in their loops first.
   const threads = ownThread ? new InferenceThreads(demo.anira, demo.context) : null
   threads?.add()
   await (threads ? threads.ready() : demo.context.ready())
-  const count = threads ? threads.count : demo.context.threads
+  const count = threads ? threads.count : demo.context.numInferenceThreads()
   check(
     count >= 1,
     `${count} inference thread(s) booted the worker module's engine ` +
