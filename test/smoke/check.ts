@@ -17,7 +17,6 @@ import processorModule from './processor.ts?worker&url'
 import { DOUBLE_ENGINE } from './engine'
 import { QUARTER_PROCESSOR } from './processor'
 import { energy, renderOffline, sine, worstError, type Checks } from '../common'
-import { logPlans } from '../../src/utils/anira'
 
 const RATE = 48000
 const QUANTUM = 128
@@ -63,7 +62,9 @@ export const run = async (): Promise<Checks> => {
     budgetMs: 2,
   })
   const handler = InferenceHandler.create(context, pipeline)
-  logPlans(handler.prepare(contract))
+  for (const plan of handler.prepare(contract).plans()) {
+    console.log(`plan: ${plan.engineId ?? plan.engine}, ${plan.budgetMs} ms budget`)
+  }
   pipeline.destroy()
   contract.destroy()
   const latency = handler.getLatency()

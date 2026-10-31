@@ -15,7 +15,6 @@ const gainValue = document.getElementById('gain-value')!
 const { removeLoadingIndicator } = setupDemoUI({
   audio,
   audioContext,
-  context: demo.context,
   // The first Play, on the running context: the chain and the graph.
   start: async () => {
     const chain = await demo.start(audioContext)

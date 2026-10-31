@@ -2,7 +2,7 @@
 // chain on its inference threads, a stereo tone through its node. The engine
 // passes the audio through, so each output channel is its input, the handler's latency later.
 import type { Anira, AniraAudioNode, Context } from '@anira-project/anira'
-import { InferenceThreads } from '../../src/utils/inferenceThreads'
+import { InferenceThreads } from '../inferenceThreads'
 import { energy, renderOffline, sine, worstError, type Checks } from '../common'
 
 const RATE = 48000

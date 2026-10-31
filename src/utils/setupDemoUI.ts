@@ -1,6 +1,3 @@
-import type { Context } from '@anira-project/anira'
-import type { InferenceThreads } from './inferenceThreads'
-
 /** What a page's `start` hands back: how its dry path and the latency badge follow the chain. */
 export type StartedDemo = {
   /** The latency the dry path waits for, in samples: the handler's, read after its prepare. */
@@ -20,10 +17,15 @@ export type DemoUIOptions = {
    * context.
    */
   start: () => Promise<StartedDemo>
-  /** The context of a page on its default pool: its Workers are awaited after `start`. */
-  context?: Context
   /** A page that starts its own inference threads: the + / − Worker controls drive them. */
-  threads?: InferenceThreads
+  threads?: WorkerControls
+}
+
+/** What the + / − Worker controls drive: the page's own inference threads. */
+export type WorkerControls = {
+  readonly count: number
+  add: () => void
+  remove: () => Promise<void>
 }
 
 /**
@@ -32,13 +34,7 @@ export type DemoUIOptions = {
  * page that starts its own inference threads (`threads`), the + / − Worker controls (each thread
  * a Wasm Worker: + Worker starts one, − Worker stops the newest).
  */
-export const setupDemoUI = ({
-  audio,
-  audioContext,
-  start,
-  context,
-  threads,
-}: DemoUIOptions) => {
+export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptions) => {
   const audioToggleButton = document.getElementById('audio-toggle') as HTMLButtonElement
   audioToggleButton.disabled = false
 
@@ -67,10 +63,6 @@ export const setupDemoUI = ({
     audioToggleButton.textContent = 'Starting…'
     try {
       started = await start()
-      if (context) {
-        await context.ready() // the pool's Wasm Workers start once this thread yields
-        console.log(`inference threads: ${context.numInferenceThreads()}`)
-      }
       applyLatency(started)
       const demo = started
       // The page switches the output device, so the page decides when to re-measure: the burst
@@ -199,7 +191,7 @@ export const connectDryWet = (
 }
 
 /** The + / − Worker controls of a page that starts and stops its own inference threads. */
-const setupWorkerControls = (threads: InferenceThreads) => {
+const setupWorkerControls = (threads: WorkerControls) => {
   const workerCountElement = document.getElementById('worker-count')!
   const addWorkerButton = document.getElementById('add-worker') as HTMLButtonElement
   const removeWorkerButton = document.getElementById('remove-worker') as HTMLButtonElement

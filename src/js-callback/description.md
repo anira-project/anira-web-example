@@ -22,7 +22,7 @@ uses the pattern to run a model with `onnxruntime-web`.
 
 This is also the one demo that **starts its own inference threads**.
 Its context is created with `threads: 0`, no pool, and the page runs
-`anira_inference_thread_*` threads itself (`inferenceThreads.ts`, the
+`anira_inference_thread_*` threads itself (`index.ts`, the
 typed C entries on `anira.abi`), each a Wasm Worker that imports the
 worker module: **+ Worker** starts one, **− Worker** stops the newest.
 A pool's size is fixed when it is created; these threads come and go

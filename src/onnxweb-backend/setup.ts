@@ -1,69 +1,127 @@
 import {
+  Anira,
   Context,
   ContractHandle,
   InferenceHandler,
   ModelConfig,
   ONNXRUNTIME_WEB_ENGINE_ID, // from the root entry: naming the engine bundles no onnxruntime-web
   Pipeline,
+  anira_engine,
   measureRenderGeometry,
 } from '@anira-project/anira'
 // The worker module, bundled by Vite into one self-contained ES module; its URL.
 import workerModule from './worker.ts?worker&url'
-import { logPlans, openAnira, remeasure } from '../utils/anira'
 
 /** The model's Static input `gain`: input slot 1 of the model config. */
 export const GAIN_SLOT = 1
 
 /**
  * The demo's anira chain: the stereo gain model of Simple Gain Stereo, run by the ONNX Runtime
- * Web engine, a JavaScript engine defined in the context's worker module (worker.ts) on each
- * inference Worker. Loading needs no audio; `start` builds the chain on a running context up to
- * the handler's audio node. `waitMs` lets each quantum wait for its inference (an offline render).
+ * Web engine, a JavaScript engine defined in the context's worker module (worker.ts), on each
+ * inference Worker.
+ * Loading needs no audio; `start` builds the chain on a running context (a live one is
+ * measured) up to the handler's audio node, which the page connects. `waitMs` lets each quantum
+ * wait for its inference (an offline render).
  */
 export async function loadOnnxRuntimeWebBackend() {
-  const { anira, own, teardown } = await openAnira()
-  const site = new URL(import.meta.env.BASE_URL, location.href)
+  // The module on this thread. Its shared WebAssembly memory starts at 256 MiB and grows as the
+  // models need (Anira.create's `memory` option sizes it).
+  const anira = await Anira.create()
+  // Its log, to the console. The web has no log drain thread: the pump delivers the records the
+  // real-time threads queue.
+  anira.setLogSink()
+  const stopLogPump = anira.startLogPump()
 
-  // The context: the default pool, each Worker of which imports the worker module first (the
-  // engine is defined there, not here).
-  const context = own(Context.create(anira, { workerModule }))
-  // The model entry names the engine by its id and the .onnx beside the config, which fromUrl
-  // fetches once and attaches: every Worker's engine reads those bytes.
-  const model = own(
-    await ModelConfig.fromUrl(
-      anira,
-      new URL('simple-gain-stereo-ort-web.model.json', site)
-    )
+  // The context: the core and its pool of inference threads, Wasm Workers, half the cores by
+  // default. Each Worker imports the worker module first: the JavaScript engine is defined
+  // there, in the Worker's own realm, not here.
+  const context = Context.create(anira, { workerModule })
+
+  // The model config names the engine by its id and the .onnx beside it, which fromUrl fetches
+  // once, here, and attaches: every Worker's engine creates its session from those bytes. The
+  // contract is Simple Gain Stereo's.
+  const site = new URL(import.meta.env.BASE_URL, location.href)
+  const model = await ModelConfig.fromUrl(
+    anira,
+    new URL('simple-gain-stereo-ort-web.model.json', site)
   )
-  const contract = own(
-    await ContractHandle.fromUrl(anira, new URL('simple-gain-stereo.contract.json', site))
+  const contract = await ContractHandle.fromUrl(
+    anira,
+    new URL('simple-gain-stereo.contract.json', site)
   )
 
   const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
-    // One render quantum per call, blocks up to the burst the context renders back to back.
-    const g = await measureRenderGeometry(audioContext)
-    contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
+    // The geometry: one render quantum per process call, and blocks up to the burst a live
+    // context renders back to back (a device callback's worth of quanta), measured on the
+    // running context. The contract gets it, so the latency the handler reports covers a burst.
+    const geometry = await measureRenderGeometry(audioContext)
+    contract.hardGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
+    // The pipeline: the inference stage over the model config, and the JavaScript engine under
+    // the id its entry names (defined in the worker module).
     const pipeline = Pipeline.create(anira)
       .addInference(model)
       .addEngine(ONNXRUNTIME_WEB_ENGINE_ID)
-    const handler = own(InferenceHandler.create(context, pipeline))
-    logPlans(handler.prepare(contract))
-    pipeline.destroy()
+    const handler = InferenceHandler.create(context, pipeline)
+    pipeline.destroy() // the handler copied it
 
-    // The node: stereo in and out, the gain a k-rate AudioParam. An offline render waits for
-    // its inferences: the pool first.
-    if (waitMs > 0) await context.ready()
-    const audioNode = own(
-      await handler.createAudioNode(audioContext, { params: [GAIN_SLOT], waitMs })
-    )
+    // prepare compiles the plans under the contract and returns the report of them: one plan per
+    // model entry the build can run, with its engine (a JavaScript engine by its id, a built-in
+    // one by its anira_engine name) and its budget.
+    const report = handler.prepare(contract)
+    for (const plan of report.plans()) {
+      const engine =
+        plan.engineId ??
+        Object.entries(anira_engine).find(([, value]) => value === plan.engine)?.[0]
+      console.log(`plan: ${engine}, ${plan.budgetMs} ms budget`)
+    }
+    // The latency: how many samples later the output answers the input.
+    console.log(`latency: ${handler.getLatency()} samples`)
+
+    // The pool's Workers start once this thread yields and import their module first: an
+    // offline render waits for every inference, so they must be in their loops before it; a
+    // live stream would only miss its first quanta.
+    await context.ready()
+    console.log(`inference threads: ${context.numInferenceThreads()}`)
+
+    // The audio node: a Web Audio input and output per Streamed slot of the model (stereo in and
+    // out), the Static gain a k-rate AudioParam of the node.
+    const audioNode = await handler.createAudioNode(audioContext, {
+      params: [GAIN_SLOT],
+      waitMs,
+    })
     const gain = audioNode.params.get(GAIN_SLOT)!
     gain.value = 1
+
+    // After an output-device change (the page's sinkchange): measure again with the running node
+    // held (silent, so its rendering does not hide the device's callbacks from the probe), give
+    // the contract the new geometry and re-prepare the node, which holds off (silence) while its
+    // handler re-prepares.
+    const remeasure = async () => {
+      const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
+      contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      const again = audioNode.prepare(contract) // the report of the new prepare
+      console.log(
+        `re-prepared: ${again.numPlans()} plan(s), latency ${handler.getLatency()} samples`
+      )
+    }
+
+    // The teardown, in reverse order of creation: the node stops calling the handler first. C
+    // objects are freed by destroy, never by the garbage collector.
+    const teardown = () => {
+      audioNode.node.disconnect()
+      audioNode.destroy()
+      handler.destroy()
+      contract.destroy()
+      model.destroy()
+      context.destroy() // the last context stops the pool
+      stopLogPump()
+    }
     return {
       audioNode,
       gain,
       getLatency: () => handler.getLatency(),
-      remeasure: () => remeasure(audioContext, contract, [audioNode]),
+      remeasure,
       teardown,
     }
   }

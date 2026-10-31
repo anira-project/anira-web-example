@@ -3,6 +3,8 @@ import type { Anira, Context } from '@anira-project/anira'
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
+ * (The checks' helper: JS Callback's page spells these calls out in its index.ts.)
+ *
  * The page's own inference threads of a context created with `threads: 0` (no pool): each one an
  * `anira_inference_thread` that anira runs as a Wasm Worker on the module's memory, which imports
  * the context's worker module before its loop. A pool's size is fixed at its creation; these

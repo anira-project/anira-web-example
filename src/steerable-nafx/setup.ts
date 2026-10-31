@@ -1,53 +1,114 @@
 import {
+  Anira,
   Context,
   ContractHandle,
   InferenceHandler,
   ModelConfig,
   Pipeline,
+  anira_engine,
   measureRenderGeometry,
 } from '@anira-project/anira'
-import { logPlans, openAnira, remeasure } from '../utils/anira'
-
 /**
  * The demo's anira chain: the 2-block Steerable-NAFX CNN on the built-in ONNX Runtime engine,
  * mono. Its receptive field is the model config's overlap: each inference takes 1156 samples,
  * the 132 of the previous window and 1024 new ones, and yields 1024. No processor and no worklet
  * module: the windowing that the 2.x demo wrote in JavaScript in its audio worklet is the
- * declared window. Loading needs no audio; `start` builds the chain on a running context up to
- * the handler's audio node. `waitMs` lets each quantum wait for its inference (an offline render).
+ * declared window.
+ * Loading needs no audio; `start` builds the chain on a running context (a live one is
+ * measured) up to the handler's audio node, which the page connects. `waitMs` lets each quantum
+ * wait for its inference (an offline render).
  */
 export async function loadSteerableNafx() {
-  const { anira, own, teardown } = await openAnira()
-  const site = new URL(import.meta.env.BASE_URL, location.href)
+  // The module on this thread. Its shared WebAssembly memory starts at 256 MiB and grows as the
+  // models need (Anira.create's `memory` option sizes it).
+  const anira = await Anira.create()
+  // Its log, to the console. The web has no log drain thread: the pump delivers the records the
+  // real-time threads queue.
+  anira.setLogSink()
+  const stopLogPump = anira.startLogPump()
 
-  // The context; the model's window and overlap (public/steerable-nafx.model.json); the Hard
-  // contract: 23.2 ms per inference (1024 samples at 44.1 kHz, the 2.x real-time threshold),
-  // 2 warm-up runs.
-  const context = own(Context.create(anira))
-  const model = own(
-    await ModelConfig.fromUrl(anira, new URL('steerable-nafx.model.json', site))
+  // The context: the core and its pool of inference threads, Wasm Workers, half the cores by
+  // default, as natively. The built-in engine needs no worker module.
+  const context = Context.create(anira)
+
+  // The model config declares the window and its overlap (public/steerable-nafx.model.json);
+  // the Hard contract: 23.2 ms per inference (1024 samples at 44.1 kHz, the 2.x real-time
+  // threshold) and 2 warm-up runs. The geometry is the host's, in start.
+  const site = new URL(import.meta.env.BASE_URL, location.href)
+  const model = await ModelConfig.fromUrl(
+    anira,
+    new URL('steerable-nafx.model.json', site)
   )
-  const contract = own(
-    await ContractHandle.fromUrl(anira, new URL('steerable-nafx.contract.json', site))
+  const contract = await ContractHandle.fromUrl(
+    anira,
+    new URL('steerable-nafx.contract.json', site)
   )
 
   const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
-    // One render quantum per call, blocks up to the burst the context renders back to back.
-    const g = await measureRenderGeometry(audioContext)
-    contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
+    // The geometry: one render quantum per process call, and blocks up to the burst a live
+    // context renders back to back (a device callback's worth of quanta), measured on the
+    // running context. The contract gets it, so the latency the handler reports covers a burst.
+    const geometry = await measureRenderGeometry(audioContext)
+    contract.hardGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
+    // The pipeline: the one inference stage over the model config.
     const pipeline = Pipeline.create(anira).addInference(model)
-    const handler = own(InferenceHandler.create(context, pipeline))
-    logPlans(handler.prepare(contract))
-    pipeline.destroy()
+    const handler = InferenceHandler.create(context, pipeline)
+    pipeline.destroy() // the handler copied it
 
-    // The node: mono in and out. An offline render waits for its inferences: the pool first.
-    if (waitMs > 0) await context.ready()
-    const audioNode = own(await handler.createAudioNode(audioContext, { waitMs }))
+    // prepare compiles the plans under the contract and returns the report of them: one plan per
+    // model entry the build can run, with its engine (a JavaScript engine by its id, a built-in
+    // one by its anira_engine name) and its budget.
+    const report = handler.prepare(contract)
+    for (const plan of report.plans()) {
+      const engine =
+        plan.engineId ??
+        Object.entries(anira_engine).find(([, value]) => value === plan.engine)?.[0]
+      console.log(`plan: ${engine}, ${plan.budgetMs} ms budget`)
+    }
+    // The latency: how many samples later the output answers the input.
+    console.log(`latency: ${handler.getLatency()} samples`)
+
+    // The pool's Workers start once this thread yields and import their module first: an
+    // offline render waits for every inference, so they must be in their loops before it; a
+    // live stream would only miss its first quanta.
+    await context.ready()
+    console.log(`inference threads: ${context.numInferenceThreads()}`)
+
+    // The audio node: a Web Audio input and output per Streamed slot of the model (mono in and
+    // out).
+    const audioNode = await handler.createAudioNode(audioContext, {
+      waitMs,
+    })
+
+    // After an output-device change (the page's sinkchange): measure again with the running node
+    // held (silent, so its rendering does not hide the device's callbacks from the probe), give
+    // the contract the new geometry and re-prepare the node, which holds off (silence) while its
+    // handler re-prepares.
+    const remeasure = async () => {
+      const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
+      contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      const again = audioNode.prepare(contract) // the report of the new prepare
+      console.log(
+        `re-prepared: ${again.numPlans()} plan(s), latency ${handler.getLatency()} samples`
+      )
+    }
+
+    // The teardown, in reverse order of creation: the node stops calling the handler first. C
+    // objects are freed by destroy, never by the garbage collector.
+    const teardown = () => {
+      audioNode.node.disconnect()
+      audioNode.destroy()
+      handler.destroy()
+      contract.destroy()
+      model.destroy()
+      context.destroy() // the last context stops the pool
+      stopLogPump()
+    }
     return {
       audioNode,
       getLatency: () => handler.getLatency(),
-      remeasure: () => remeasure(audioContext, contract, [audioNode]),
+      remeasure,
       teardown,
     }
   }
