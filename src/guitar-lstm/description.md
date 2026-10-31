@@ -19,7 +19,7 @@ the pre-processing of anira's native HybridNN example
 (`extras/models/hybrid-nn`) in JavaScript; anira's default
 pre-processing would fill the tensor with one contiguous window.
 
-The contract is Hard, its geometry measured on the running context: **34.8 ms per inference,
+The contract is Hard, its host blocks measured on the running context: **34.8 ms per inference,
 three hops** of 512 samples at 44.1 kHz, and 2 warm-up runs. The model has no state, so
 anira's pool runs consecutive inferences side by side, and a budget longer than a hop costs
 latency, not throughput. The budget matters because one inference is cheap on a fast core but

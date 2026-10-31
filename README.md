@@ -71,7 +71,7 @@ Every demo is ported but RAVE: Funk & Djembe, whose two stateless models (16384-
 
 How the pages use the latency:
 
-- `start` measures the context's render geometry (`measureRenderGeometry`: its render quantum, and the burst of quanta a live context renders back to back) and sets it on the contract before the handler's prepare, so the latency the handler reports covers a burst; prepared for one quantum alone, a handler misses the quanta of each burst past its latency.
+- `start` measures the context's render geometry (`measureRenderGeometry`: its render quantum, and the burst of quanta a live context renders back to back) and sets it on the contract as its host blocks (`hardHostBlocks`) before the handler's prepare, so the latency the handler reports covers a burst; prepared for one quantum alone, a handler misses the quanta of each burst past its latency.
 - Every page shows the handler's latency, read after the prepare, in a badge ("Latency: N samples (x ms)"), and its dry path goes through a `DelayNode` set to `latency / sampleRate`, so Dry / Wet compares the same moment of the input.
 - On `sinkchange` (the page switched the output device) the page measures again, re-prepares the running node (`audioNode.prepare(contract)`, which holds the node off meanwhile; the graph stays connected) and updates the delay and the badge. That is the page's call: an OS default-device change may fire no event.
 

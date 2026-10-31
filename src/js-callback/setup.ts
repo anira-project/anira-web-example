@@ -47,11 +47,11 @@ export async function loadJsCallback() {
   )
 
   const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
-    // The geometry: one render quantum per process call, and blocks up to the burst a live
+    // The host blocks: one render quantum per process call, and blocks up to the burst a live
     // context renders back to back (a device callback's worth of quanta), measured on the
-    // running context. The contract gets it, so the latency the handler reports covers a burst.
+    // running context. The contract gets them, so the latency the handler reports covers a burst.
     const geometry = await measureRenderGeometry(audioContext)
-    contract.hardGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
+    contract.hardHostBlocks(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
     // The pipeline: the inference stage and the JavaScript engine under its id, which promises
     // to read no model file.
@@ -81,11 +81,11 @@ export async function loadJsCallback() {
 
     // After an output-device change (the page's sinkchange): measure again with the running node
     // held (silent, so its rendering does not hide the device's callbacks from the probe), give
-    // the contract the new geometry and re-prepare the node, which holds off (silence) while its
-    // handler re-prepares.
+    // the contract the new host blocks and re-prepare the node, which holds off (silence)
+    // while its handler re-prepares.
     const remeasure = async () => {
       const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
-      contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      contract.hardHostBlocks(g.quantum, g.burst, audioContext.sampleRate)
       const again = audioNode.prepare(contract) // the report of the new prepare
       console.log(
         `re-prepared: ${again.numPlans()} plan(s), latency ${handler.getLatency()} samples`

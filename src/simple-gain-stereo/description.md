@@ -18,12 +18,12 @@ The page loads the module, the context and the configs; the first
 **Play** builds the chain on the running context. It measures the
 context's render geometry (`measureRenderGeometry`: the render quantum
 and the burst of quanta a live context renders back to back), sets it
-on the contract and prepares the handler, whose latency then covers a
-burst. The **latency badge** shows that latency, and the dry path of
-**Dry / Wet** is delayed by it, so the two compare the same moment of
-the input. When the output device changes (`sinkchange`), the page
-measures again and re-prepares the running node, and the badge and the
-delay follow. The context runs its default pool of inference threads,
+on the contract as its host blocks and prepares the handler, whose
+latency then covers a burst. The **latency badge** shows that latency,
+and the dry path of **Dry / Wet** is delayed by it, so the two compare
+the same moment of the input. When the output device changes
+(`sinkchange`), the page measures again and re-prepares the running
+node, and the badge and the delay follow. The context runs its default pool of inference threads,
 each a Wasm Worker on the module's memory.
 
 If you want to follow the source step by step, the

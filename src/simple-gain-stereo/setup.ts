@@ -33,7 +33,7 @@ export async function loadSimpleGainStereo() {
 
   // The model config and the contract are the JSON files a native host loads. fromUrl fetches
   // the .onnx the model config names, beside it, and attaches its bytes. The contract file
-  // states the budget and the warm-up; the geometry (block sizes, rate) is the host's, in start.
+  // states the budget and the warm-up; the host blocks (sizes, rate) are the page's, in start.
   const site = new URL(import.meta.env.BASE_URL, location.href)
   const model = await ModelConfig.fromUrl(
     anira,
@@ -45,11 +45,11 @@ export async function loadSimpleGainStereo() {
   )
 
   const start = async (audioContext: BaseAudioContext, { waitMs = 0 } = {}) => {
-    // The geometry: one render quantum per process call, and blocks up to the burst a live
+    // The host blocks: one render quantum per process call, and blocks up to the burst a live
     // context renders back to back (a device callback's worth of quanta), measured on the
-    // running context. The contract gets it, so the latency the handler reports covers a burst.
+    // running context. The contract gets them, so the latency the handler reports covers a burst.
     const geometry = await measureRenderGeometry(audioContext)
-    contract.hardGeometry(geometry.quantum, geometry.burst, audioContext.sampleRate)
+    contract.hardHostBlocks(geometry.quantum, geometry.burst, audioContext.sampleRate)
 
     // The pipeline: the one inference stage over the model config.
     const pipeline = Pipeline.create(anira).addInference(model)
@@ -86,11 +86,11 @@ export async function loadSimpleGainStereo() {
 
     // After an output-device change (the page's sinkchange): measure again with the running node
     // held (silent, so its rendering does not hide the device's callbacks from the probe), give
-    // the contract the new geometry and re-prepare the node, which holds off (silence) while its
-    // handler re-prepares.
+    // the contract the new host blocks and re-prepare the node, which holds off (silence)
+    // while its handler re-prepares.
     const remeasure = async () => {
       const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
-      contract.hardGeometry(g.quantum, g.burst, audioContext.sampleRate)
+      contract.hardHostBlocks(g.quantum, g.burst, audioContext.sampleRate)
       const again = audioNode.prepare(contract) // the report of the new prepare
       console.log(
         `re-prepared: ${again.numPlans()} plan(s), latency ${handler.getLatency()} samples`
