@@ -58,7 +58,6 @@ export default defineConfig({
     format: 'es',
     rolldownOptions: { output: { codeSplitting: false } },
   },
-  // fs.strict off: the linked package (file:../anira/web) lives outside the project root.
-  server: { headers: CORS_HEADERS, fs: { strict: false } },
+  server: { headers: CORS_HEADERS },
   preview: { headers: CORS_HEADERS },
 })

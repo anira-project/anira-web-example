@@ -1,38 +1,23 @@
 # Anira Web Demo — `v3` branch
 
-A small collection of in-browser demos for [anira](https://github.com/anira-project/anira) — a real-time neural network inference library for low-latency audio processing. This branch runs them on **anira 3** (`@anira-project/anira` 3.0.0-alpha.2, not yet on npm): the C++ library compiled to WebAssembly, whose inference threads are Wasm Workers and whose audio path is a Wasm Audio Worklet node with a C render callback, under a typed TypeScript layer over the C ABI. The model and contract files are the same JSON a native anira host loads (`public/*.model.json`, `public/*.contract.json`).
+A small collection of in-browser demos for [anira](https://github.com/anira-project/anira) — a real-time neural network inference library for low-latency audio processing. This branch runs them on **anira 3** (`@anira-project/anira` 3.0.0-alpha.2 from npm, dist-tag `next`): the C++ library compiled to WebAssembly, whose inference threads are Wasm Workers and whose audio path is a Wasm Audio Worklet node with a C render callback, under a typed TypeScript layer over the C ABI. The model and contract files are the same JSON a native anira host loads (`public/*.model.json`, `public/*.contract.json`).
 
-`main` stays on the 2.2.1 release from npm and keeps deploying to GitHub Pages; this branch has no deployment and no CI until 3.0.0-alpha.2 is published.
+`main` stays on the 2.2.1 release from npm and keeps deploying to GitHub Pages; this branch has no deployment and no CI yet.
 
-## Building against a local anira checkout
+## Installing and running
 
-The dependency is `"@anira-project/anira": "file:../anira/web"`: an anira checkout beside this one, whose package npm links. Until anira PR #221 (`onnxRuntimeWeb({ numThreads })`, which the RAVE demo uses, and the Debug build's Workers) is merged, check out its branch `fix/v3-debug-wasm-memory`; once it is, `v3`.
+The dependency is pinned to the exact release, `"@anira-project/anira": "3.0.0-alpha.2"`, so the example does not move to the next alpha by itself. The 3.x alphas are published under npm's `next` dist-tag (`latest` is still 2.x). The package ships the WebAssembly module and the TypeScript layer prebuilt: no anira checkout and no emsdk.
 
 ```bash
-# next to this repository
-git clone https://github.com/anira-project/anira.git ../anira
-cd ../anira
-git checkout fix/v3-debug-wasm-memory   # until anira #221 is merged; then v3
-
-# the WASM module (emsdk 4.0.23; emcc --emit-tsd needs tsc on the PATH)
-export EMSDK=/path/to/emsdk-4.0.23
-cmake --preset wasm-release
-cmake --build --preset wasm-release
-
-# the TypeScript package (web/dist)
-cd web
-npm ci
-npm run build          # npm run dev rebuilds on changes
-
-# this site
-cd ../../anira-web-example
-npm install
+npm install            # @anira-project/anira 3.0.0-alpha.2 and the rest
 npm run dev            # or: npm run build && npm run preview
 ```
 
+In a project of your own: `npm install @anira-project/anira@next` (or `@anira-project/anira@3.0.0-alpha.2` for this release).
+
 The RAVE demo's model (126 MB, too large for git) is fetched into `public/rave.onnx` (gitignored) when the dev server or a build starts: `fetch-models.ts`, a Vite plugin, downloads `model_forward.onnx` from the [realtime inference workshop](https://github.com/anira-project/realtime-inference-workshop)'s release `workshop-model` and checks its SHA-256, once (`node fetch-models.ts` runs it alone; `RAVE_MODEL=/path/to/model_forward.onnx` copies a local file instead of downloading).
 
-A rebuild of the package (`npm run build` in `anira/web`) reaches the site without a re-install. The dev server and `vite preview` send `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, which the module's shared `WebAssembly.Memory` needs (`crossOriginIsolated`); on GitHub Pages [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker) stands in for the headers. The full anira build documentation is [Installation / Building](https://anira-project.github.io/anira/web-api/installation_building.html).
+The dev server and `vite preview` send `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, which the module's shared `WebAssembly.Memory` needs (`crossOriginIsolated`); on GitHub Pages [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker) stands in for the headers. The full anira build documentation is [Installation / Building](https://anira-project.github.io/anira/web-api/installation_building.html).
 
 ## Tests
 

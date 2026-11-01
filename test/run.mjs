@@ -7,9 +7,9 @@
 // - every demo page: it must reach "ready" (the loading overlay removed, the context's default
 //   pool in its loops; on JS Callback's page + / − Worker count up and down) and play for a
 //   moment after a click on Play, with no console error, no page error and no refused load.
-// Then the same pages once more under Vite's dev server, which serves the linked package
-// (file:../anira/web) from outside the project root. Live audio is not observable headless: the
-// demo pages are smoke-run only, by ear is for a person.
+// Then the same pages once more under Vite's dev server, which serves the package from
+// node_modules as it is (not pre-bundled). Live audio is not observable headless: the demo pages
+// are smoke-run only, by ear is for a person.
 // usage: node test/run.mjs [chromium|firefox|all] [build|dev|both] [name,...]
 //   the names (a check's or a page's, e.g. steerable-nafx or index.html) run those alone.
 //   PLAYWRIGHT_BROWSERS_PATH points at the installed browsers (npx playwright install chromium
