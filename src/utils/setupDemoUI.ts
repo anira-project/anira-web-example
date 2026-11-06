@@ -69,6 +69,8 @@ export type DemoUIOptions = {
   start: () => Promise<StartedDemo>
   /** A page that starts its own inference threads: the + / − Worker controls drive them. */
   threads?: WorkerControls
+  /** The Play button's text while `start` runs (default "Starting…"). */
+  startingLabel?: string
 }
 
 /** What the + / − Worker controls drive: the page's own inference threads. */
@@ -84,7 +86,13 @@ export type WorkerControls = {
  * page that starts its own inference threads (`threads`), the + / − Worker controls (each thread
  * a Wasm Worker: + Worker starts one, − Worker stops the newest).
  */
-export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptions) => {
+export const setupDemoUI = ({
+  audio,
+  audioContext,
+  start,
+  threads,
+  startingLabel = 'Starting…',
+}: DemoUIOptions) => {
   const audioToggleButton = document.getElementById('audio-toggle') as HTMLButtonElement
   audioToggleButton.disabled = false
 
@@ -132,7 +140,7 @@ export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptio
     if (audioContext.state !== 'running') await audioContext.resume()
     if (started) return
     audioToggleButton.disabled = true
-    audioToggleButton.textContent = 'Starting…'
+    audioToggleButton.textContent = startingLabel
     try {
       started = await start()
       applyLatency(started)

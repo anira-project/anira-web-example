@@ -76,8 +76,10 @@ export async function loadRave() {
 
     // The contract's warm-up runs at prepare, on the inference thread, and measures the budget
     // there: the Worker starts with the context, runs its engine's init (the session is created
-    // there) and enters its loop once this thread yields, so wait for it before the prepare.
-    await context.ready()
+    // there) and enters its loop once this thread yields, so wait for it before the prepare. The
+    // init downloads the 126 MB model on a first visit, longer than ready()'s default 10 s on
+    // most connections, so the wait allows 10 minutes.
+    await context.ready(10 * 60 * 1000)
     console.log(`inference threads: ${context.numInferenceThreads()}`)
 
     // prepare compiles the plans under the contract, measures each plan's budget with the warm-up
