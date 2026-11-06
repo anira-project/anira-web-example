@@ -16,7 +16,14 @@ const { removeLoadingIndicator } = setupDemoUI({
     const chain = await demo.start(audioContext)
     const sourceNode = audioContext.createMediaElementSource(audio)
     const dry = connectDryWet(audioContext, sourceNode, chain.audioNode.node)
-    return { getLatency: chain.getLatency, remeasure: chain.remeasure, dry }
+    return {
+      getLatency: chain.getLatency,
+      remeasure: chain.remeasure,
+      dry,
+      plan: chain.plan,
+      waitsForConsent: chain.waitsForConsent,
+      tryNonetheless: chain.tryNonetheless,
+    }
   },
 })
 

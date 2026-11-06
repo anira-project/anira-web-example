@@ -17,7 +17,7 @@ window from the input ring. No processor, no worklet module: the demo is
 the plain chain of [Simple Gain Stereo](simple-gain-stereo.html),
 mono.
 
-The contract is Hard, its host blocks measured on the running context: 23.2 ms per inference
-(1024 samples at 44.1 kHz, the real-time threshold of the 2.x demo)
-and 2 warm-up runs. Model windows and overlaps are covered in the
+The contract is Hard, its host blocks measured on the running context, its budget measured at
+prepare by the warm-up pass until the times are stable (the 2.x demo set 23.2 ms per inference,
+1024 samples at 44.1 kHz, its real-time threshold). Model windows and overlaps are covered in the
 [usage guide](https://anira-project.github.io/anira/usage.html).

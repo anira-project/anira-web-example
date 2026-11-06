@@ -9,8 +9,9 @@ The model and its contract are the same JSON files a native host
 loads: `simple-gain-stereo.model.json` describes a streamed stereo
 audio tensor (a window of 512 samples, fed by the handler block by
 block) and a Static scalar `gain`, and names the `.onnx` file beside
-it; `simple-gain-stereo.contract.json` is the Hard contract (5 ms per
-inference, 10 warm-up runs). The gain is an AudioParam of the
+it; `simple-gain-stereo.contract.json` is the Hard contract, on anira's
+defaults: the budget is what the warm-up pass measures at prepare, until
+its times are stable. The gain is an AudioParam of the
 handler's audio node, whose render callback hands the model each
 quantum's value. No processor, no JavaScript engine, no worker module.
 

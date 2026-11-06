@@ -414,6 +414,23 @@ body {
   font-family: var(--font-mono);
 }
 
+.verdict-note {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+#try-nonetheless {
+  margin-top: 8px;
+}
+
+.btn[hidden] {
+  display: none;
+}
+
 /* ── Slider / Range ──────────────────────────────────── */
 
 .slider-group {

@@ -42,13 +42,14 @@ since a second would only wait. anira's built-in ONNX Runtime engine (`"engine":
 
 ## A warm start, and bypass on a miss
 
-The first inferences of a session are slow while onnxruntime-web sets itself up, and anira's
-warm-up (a contract's `"warmup"`) runs on its built-in engines only. So the engine gets the
-model itself (`onnxRuntimeWeb({ model, warmup: 3 })`): it fetches `rave.onnx`, creates its
-session and runs three inferences over zeros in its init, before the inference Worker's loop,
-and the page creates the audio node once that Worker is ready. Over the config's model entry
-the session would only come at the first call, inside the stream. The page fetches no model
-file of its own (`fetchModel: () => false`), so the model is loaded once.
+The first inferences of a session are slow while onnxruntime-web sets itself up. The engine
+gets the model itself (`onnxRuntimeWeb({ model })`): it fetches `rave.onnx` and creates its
+session in its init, before the inference Worker's loop. The contract's warm-up
+(`"until_stable"`) then runs at prepare, through this engine on that Worker, until its times
+are stable, so the stream starts warm and the budget is what this machine takes; the page
+prepares once the Worker is ready. Over the config's model entry the session would only come at
+the first call, inside the pass. The page fetches no model file of its own
+(`fetchModel: () => false`), so the model is loaded once.
 
 A block that still misses plays the input instead of silence (`"on_miss": "bypass"` in
 `rave.contract.json`).
@@ -60,7 +61,7 @@ A block that still misses plays the input instead of silence (`"on_miss": "bypas
 | RAVE inference | One handler (`rave.model.json`, `rave.contract.json`) on the ONNX Runtime Web engine with two threads per inference, defined in the context's worker module (`worker.ts`), with its audio node |
 | Stereo → mono downmix | `inputGain` GainNode with `channelCount=1`, `channelInterpretation='speakers'` |
 | Dry/wet crossfade | `dryGain` / `wetGain` with gains summing to 1, both connected to `destination` |
-| Latency compensation | `dryDelay`, a `DelayNode` on the dry path set to the handler's `latency()`, which anira derives from the model config and the contract during `prepare()` ([latency model docs](https://anira-project.github.io/anira/latency.html)): the alignment between the host's block and the model's 2048 samples, the blocks that pass while the model infers (the contract's budget of 46.4 ms), and the model's own 2224 samples. |
+| Latency compensation | `dryDelay`, a `DelayNode` on the dry path set to the handler's `latency()`, which anira derives from the model config and the contract during `prepare()` ([latency model docs](https://anira-project.github.io/anira/latency.html)): the alignment between the host's block and the model's 2048 samples, the blocks that pass while the model infers (the budget the warm-up measured), and the model's own 2224 samples. |
 
 ## Notes
 

@@ -1,4 +1,9 @@
-/** What a page's `start` hands back: how its dry path and the latency badge follow the chain. */
+import { anira_rt_verdict, type PlanInfo } from '@anira-project/anira'
+
+/**
+ * What a page's `start` hands back: how its dry path and the latency badge follow the chain, and
+ * the verdict of the plan it runs, which the page shows.
+ */
 export type StartedDemo = {
   /** The latency the dry path waits for, in samples: the handler's, read after its prepare. */
   getLatency: () => number
@@ -6,6 +11,51 @@ export type StartedDemo = {
   remeasure: () => Promise<void>
   /** The dry path's delay, set to `getLatency() / sampleRate`. */
   dry: DelayNode
+  /** The row of the plan the chain runs, from its last prepare. */
+  plan: () => PlanInfo
+  /** Whether the chain's node is held until the user agrees: its plan is not real-time here. */
+  waitsForConsent: () => boolean
+  /** The user agrees: the node runs, and its verdict counts as accepted. */
+  tryNonetheless: () => void
+}
+
+/** What the verdict shows of a started chain: the plan it runs and whether its node is held. */
+export type DemoVerdict = Pick<StartedDemo, 'plan' | 'waitsForConsent'>
+
+/**
+ * Show the verdict of the plan `demo` runs in `note`, and `button` ("Try nonetheless") while its
+ * node is held: not real-time, the message and (while held) the button; marginal, the note alone;
+ * comfortable or unmeasured, nothing. Returns the note's text (empty when hidden).
+ */
+export const renderVerdict = (
+  demo: DemoVerdict,
+  note: HTMLElement,
+  button: HTMLElement
+): string => {
+  const plan = demo.plan()
+  // The real-time factor is the plan's inference time over the hop period: the time and the
+  // period it is measured against, and the load of the inferences that run in parallel.
+  const time = plan.measuredMs > 0 ? plan.measuredMs : plan.budgetMs
+  const hop = plan.rtFactor > 0 ? time / plan.rtFactor : 0
+  const load = plan.rtFactor / plan.rtParallel
+  const figures =
+    `${load.toFixed(2)}× real time (${time.toFixed(1)} ms per ${hop.toFixed(1)} ms block` +
+    `${plan.rtParallel > 1 ? `, ${plan.rtParallel} in parallel` : ''})`
+  if (plan.rtVerdict === anira_rt_verdict.ANIRA_RT_NOT_REALTIME) {
+    note.textContent = demo.waitsForConsent()
+      ? `This machine runs the model at ${figures}: playback will drop out. The model's ` +
+        'output stays silent until you click "Try nonetheless".'
+      : `This machine runs the model at ${figures}: playback drops out, the missed blocks ` +
+        "filled by the contract's miss policy."
+  } else if (plan.rtVerdict === anira_rt_verdict.ANIRA_RT_MARGINAL) {
+    note.textContent = `This machine runs the model at ${figures}: it may drop out under load.`
+  } else {
+    note.textContent = ''
+  }
+  note.hidden = note.textContent === ''
+  button.hidden = !demo.waitsForConsent()
+  if (!note.hidden) console.log(`verdict: ${note.textContent}`)
+  return note.textContent
 }
 
 export type DemoUIOptions = {
@@ -46,7 +96,29 @@ export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptio
   latencyBadge.textContent = 'Latency: –'
   audioToggleButton.parentElement?.appendChild(latencyBadge)
 
+  // The verdict of the plan the chain runs, under the controls: a note when it is marginal or
+  // not real-time on this machine, and while the node is held, the "Try nonetheless" button
+  // (#try-nonetheless) that lets it run.
+  const verdictNote = document.createElement('div')
+  verdictNote.id = 'verdict'
+  verdictNote.className = 'verdict-note'
+  verdictNote.hidden = true
+  const tryButton = document.createElement('button')
+  tryButton.id = 'try-nonetheless'
+  tryButton.className = 'btn'
+  tryButton.textContent = 'Try nonetheless'
+  tryButton.hidden = true
+  audioToggleButton.parentElement?.after(verdictNote)
+  verdictNote.after(tryButton)
+
+  const showVerdict = (demo: StartedDemo) => renderVerdict(demo, verdictNote, tryButton)
+
   let started: StartedDemo | null = null
+  tryButton.onclick = () => {
+    if (!started) return
+    started.tryNonetheless()
+    showVerdict(started)
+  }
   const applyLatency = (demo: StartedDemo) => {
     const samples = demo.getLatency()
     demo.dry.delayTime.value = samples / audioContext.sampleRate
@@ -64,6 +136,7 @@ export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptio
     try {
       started = await start()
       applyLatency(started)
+      showVerdict(started)
       const demo = started
       // The page switches the output device, so the page decides when to re-measure: the burst
       // may differ on the new device, the running node is re-prepared for it, and the dry path
@@ -71,6 +144,7 @@ export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptio
       audioContext.addEventListener('sinkchange', async () => {
         await demo.remeasure()
         applyLatency(demo)
+        showVerdict(demo) // asks again only when the new verdict is worse than the accepted one
       })
     } finally {
       audioToggleButton.disabled = false

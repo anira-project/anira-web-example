@@ -10,7 +10,7 @@
 // block is about one inference's: reported, not checked.
 import * as ort from 'onnxruntime-web/wasm'
 import { loadRave } from '../../src/rave/setup'
-import { energy, renderOffline, sine, type Checks } from '../common'
+import { checkPlans, energy, renderOffline, sine, type Checks } from '../common'
 
 const RATE = 44100
 const BLOCK = 2048
@@ -53,6 +53,13 @@ export const run = async (): Promise<Checks> => {
   const loaded = await loadRave()
   const chain = await loaded.start(audio, { waitMs: 3000 })
   const demo = { ...loaded, ...chain, latency: chain.getLatency() }
+  // What the prepare measured (the rules, never a value), and an offline render is never held,
+  // whatever the verdict: it does not run against the clock.
+  checks.push(...checkPlans(chain.planReport()))
+  check(
+    !chain.waitsForConsent(),
+    `the offline render is not held (verdict ${chain.plan().rtVerdict})`
+  )
   // The context's pool: an offline render waits for its inferences, so its Worker must be in
   // its loop first (its engine's init, which starts onnxruntime-web's own Worker, comes before).
   await demo.context.ready()

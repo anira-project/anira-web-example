@@ -1,4 +1,10 @@
-// What the check pages share: the verdict's shape and an offline render through an anira node.
+// What the check pages share: the verdict's shape, an offline render through an anira node, and
+// the rules of what a measured prepare reports.
+import {
+  anira_rt_verdict,
+  anira_warmup_outcome,
+  type PlanReport,
+} from '@anira-project/anira'
 
 export type Check = { ok: boolean; what: string }
 export type Checks = Check[]
@@ -47,3 +53,45 @@ export const worstError = (
 
 export const energy = (samples: Float32Array): number =>
   samples.reduce((sum, x) => sum + x * x, 0)
+
+/**
+ * What a prepare under a measured budget and the until-stable warm-up reports, per plan: the
+ * rules, never a value (a slower machine measures more). The outcome is STABLE or CAPPED at a
+ * first prepare and REUSED when a re-prepare found the model's figure; 4 to 32 warm-up
+ * inferences; the budget is the figure; the median is at most the figure; the real-time factor
+ * is positive; and the verdict is what the documented thresholds give for the load (the factor
+ * over the parallel inferences): comfortable below 0.75, marginal below 1.
+ */
+export const checkPlans = (report: PlanReport, { reused = false } = {}): Checks =>
+  report.plans().map((plan, index) => {
+    const load = plan.rtFactor / plan.rtParallel
+    const verdict =
+      load < 0.75
+        ? anira_rt_verdict.ANIRA_RT_COMFORTABLE
+        : load < 1
+          ? anira_rt_verdict.ANIRA_RT_MARGINAL
+          : anira_rt_verdict.ANIRA_RT_NOT_REALTIME
+    const outcomes: number[] = reused
+      ? [anira_warmup_outcome.ANIRA_WARMUP_OUTCOME_REUSED]
+      : [
+          anira_warmup_outcome.ANIRA_WARMUP_OUTCOME_STABLE,
+          anira_warmup_outcome.ANIRA_WARMUP_OUTCOME_CAPPED,
+        ]
+    return {
+      ok:
+        outcomes.includes(plan.warmupOutcome) &&
+        plan.warmupIterations >= 4 &&
+        plan.warmupIterations <= 32 &&
+        plan.budgetMs > 0 &&
+        plan.budgetMs === plan.measuredMs &&
+        plan.medianMs <= plan.measuredMs &&
+        plan.rtFactor > 0 &&
+        plan.rtParallel >= 1 &&
+        plan.rtVerdict === verdict,
+      what:
+        `plan ${index}: outcome ${plan.warmupOutcome} after ${plan.warmupIterations} warm-up ` +
+        `inferences, budget ${plan.budgetMs} ms = measured ${plan.measuredMs} ms >= median ` +
+        `${plan.medianMs} ms, real-time factor ${plan.rtFactor} of ${plan.rtParallel}: verdict ` +
+        `${plan.rtVerdict} (the thresholds give ${verdict} for load ${load})`,
+    }
+  })

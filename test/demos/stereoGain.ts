@@ -4,8 +4,21 @@
 // the window; the change lands on a window boundary, so each output sample is its input sample
 // times the gain the model saw for its quantum (`effective` of the AudioParam's value), the
 // handler's latency later.
-import type { Anira, AniraAudioNode, Context } from '@anira-project/anira'
-import { energy, renderOffline, sine, worstError, type Checks } from '../common'
+import type {
+  Anira,
+  AniraAudioNode,
+  Context,
+  PlanInfo,
+  PlanReport,
+} from '@anira-project/anira'
+import {
+  checkPlans,
+  energy,
+  renderOffline,
+  sine,
+  worstError,
+  type Checks,
+} from '../common'
 
 const RATE = 48000
 const QUANTUM = 128
@@ -25,6 +38,9 @@ export type StereoGainDemo = {
     audioNode: AniraAudioNode
     gain: AudioParam
     getLatency: () => number
+    planReport: () => PlanReport
+    plan: () => PlanInfo
+    waitsForConsent: () => boolean
     teardown: () => void
   }>
 }
@@ -40,6 +56,13 @@ export const checkStereoGain = async (
   const loaded = await load()
   const chain = await loaded.start(audio, { waitMs: 500 })
   const demo = { ...loaded, ...chain, latency: chain.getLatency() }
+  // What the prepare measured (the rules, never a value), and an offline render is never held,
+  // whatever the verdict: it does not run against the clock.
+  checks.push(...checkPlans(chain.planReport()))
+  check(
+    !chain.waitsForConsent(),
+    `the offline render is not held (verdict ${chain.plan().rtVerdict})`
+  )
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()

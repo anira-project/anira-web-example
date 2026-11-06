@@ -1,9 +1,22 @@
 // The offline check of the two JavaScript-engine demos (JS Callback, JS Copying): the demo's
 // chain on its inference threads, a stereo tone through its node. The engine
 // passes the audio through, so each output channel is its input, the handler's latency later.
-import type { Anira, AniraAudioNode, Context } from '@anira-project/anira'
+import type {
+  Anira,
+  AniraAudioNode,
+  Context,
+  PlanInfo,
+  PlanReport,
+} from '@anira-project/anira'
 import { InferenceThreads } from '../inferenceThreads'
-import { energy, renderOffline, sine, worstError, type Checks } from '../common'
+import {
+  checkPlans,
+  energy,
+  renderOffline,
+  sine,
+  worstError,
+  type Checks,
+} from '../common'
 
 const RATE = 48000
 const QUANTUM = 128
@@ -19,6 +32,9 @@ export type PassthroughDemo = {
   ) => Promise<{
     audioNode: AniraAudioNode
     getLatency: () => number
+    planReport: () => PlanReport
+    plan: () => PlanInfo
+    waitsForConsent: () => boolean
     teardown: () => void
   }>
 }
@@ -32,13 +48,21 @@ export const checkPassthrough = async (
 
   const audio = new OfflineAudioContext(2, QUANTUM * QUANTA, RATE)
   const loaded = await load()
+  // JS Callback starts its own inference thread (a context without a pool); JS Copying has the
+  // context's default pool. Either way the Workers must be in their loops before the prepare,
+  // whose warm-up runs on them: the thread first, then start.
+  const threads = ownThread ? new InferenceThreads(loaded.anira, loaded.context) : null
+  threads?.add()
+  await (threads ? threads.ready() : loaded.context.ready())
   const chain = await loaded.start(audio, { waitMs: 500 })
   const demo = { ...loaded, ...chain, latency: chain.getLatency() }
-  // JS Callback starts its own inference thread (a context without a pool); JS Copying has the
-  // context's default pool. Either way the Workers must be in their loops first.
-  const threads = ownThread ? new InferenceThreads(demo.anira, demo.context) : null
-  threads?.add()
-  await (threads ? threads.ready() : demo.context.ready())
+  // What the prepare measured (the rules, never a value), and an offline render is never held,
+  // whatever the verdict: it does not run against the clock.
+  checks.push(...checkPlans(chain.planReport()))
+  check(
+    !chain.waitsForConsent(),
+    `the offline render is not held (verdict ${chain.plan().rtVerdict})`
+  )
   const count = threads ? threads.count : demo.context.numInferenceThreads()
   check(
     count >= 1,
