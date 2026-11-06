@@ -47,7 +47,14 @@ const { removeLoadingIndicator } = setupDemoUI({
       { audioContext, inputGain, dryGain, wetGain },
       document.getElementById('controls')!
     )
-    return { getLatency: chain.getLatency, remeasure: chain.remeasure, dry: dryDelay }
+    return {
+      getLatency: chain.getLatency,
+      remeasure: chain.remeasure,
+      dry: dryDelay,
+      plan: chain.plan,
+      waitsForConsent: chain.waitsForConsent,
+      tryNonetheless: chain.tryNonetheless,
+    }
   },
 })
 

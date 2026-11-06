@@ -27,7 +27,14 @@ const { removeLoadingIndicator } = setupDemoUI({
     offset.connect(chain.audioNode.node, 0, 1)
     lfo.start()
     offset.start()
-    return { getLatency: chain.getLatency, remeasure: chain.remeasure, dry }
+    return {
+      getLatency: chain.getLatency,
+      remeasure: chain.remeasure,
+      dry,
+      plan: chain.plan,
+      waitsForConsent: chain.waitsForConsent,
+      tryNonetheless: chain.tryNonetheless,
+    }
   },
 })
 

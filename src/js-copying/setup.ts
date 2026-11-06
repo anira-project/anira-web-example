@@ -104,6 +104,30 @@ export async function loadJsCopying() {
     // The audio node: a Web Audio input and output per Streamed slot of the model (stereo).
     const audioNode = await handler.createAudioNode(audioContext, { waitMs })
 
+    // The verdict of the plan the handler runs (its row of the last report): a plan that is not
+    // real-time on this machine would drop out, so on a live context the node is held (silent, no
+    // inference) until the user agrees (the page's "Try nonetheless", tryNonetheless). An offline
+    // render (waitMs > 0) does not run against the clock and is never held. The worst verdict the
+    // user accepted is kept: a re-prepare holds the node again only when its verdict is worse.
+    const live = waitMs === 0
+    let accepted: number = anira_rt_verdict.ANIRA_RT_UNMEASURED
+    let held = false
+    const applyVerdict = () => {
+      const plan = handler.planReport().plans()[handler.getPlan()]
+      held =
+        live &&
+        plan.rtVerdict === anira_rt_verdict.ANIRA_RT_NOT_REALTIME &&
+        plan.rtVerdict > accepted
+      audioNode.hold(held)
+    }
+    applyVerdict()
+    const tryNonetheless = () => {
+      accepted = handler.planReport().plans()[handler.getPlan()].rtVerdict
+      held = false
+      audioNode.hold(false)
+      console.log('tried nonetheless: the node runs, misses are filled by on_miss')
+    }
+
     // After an output-device change (the page's sinkchange): measure again with the running node
     // held (silent, so its rendering does not hide the device's callbacks from the probe), give
     // the contract the new host blocks and re-prepare the node, which holds off (silence)
@@ -118,10 +142,14 @@ export async function loadJsCopying() {
       const verdict = Object.entries(anira_rt_verdict).find(
         ([, value]) => value === plan.rtVerdict
       )?.[0]
+      // Held again only when the new verdict is worse than the one the user accepted.
+      applyVerdict()
+      const acceptedBefore =
+        live && !held && plan.rtVerdict === anira_rt_verdict.ANIRA_RT_NOT_REALTIME
       console.log(
         `re-prepared: ${again.numPlans()} plan(s), budget ${plan.budgetMs.toFixed(3)} ms, ` +
           `real-time factor ${plan.rtFactor.toFixed(2)} of ${plan.rtParallel}: ${verdict}, ` +
-          `latency ${handler.getLatency()} samples`
+          `latency ${handler.getLatency()} samples${acceptedBefore ? ' (accepted before)' : ''}`
       )
     }
 
@@ -141,6 +169,11 @@ export async function loadJsCopying() {
       getLatency: () => handler.getLatency(),
       /** The plan report of the handler's last prepare. */
       planReport: () => handler.planReport(),
+      /** The row of the plan the handler runs, from its last prepare. */
+      plan: () => handler.planReport().plans()[handler.getPlan()],
+      /** Whether the node is held until the user agrees (tryNonetheless). */
+      waitsForConsent: () => held,
+      tryNonetheless,
       remeasure,
       teardown,
     }
