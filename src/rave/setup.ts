@@ -7,7 +7,10 @@ import {
   ONNXRUNTIME_WEB_ENGINE_ID, // from the root entry: naming the engine bundles no onnxruntime-web
   Pipeline,
   anira_engine,
+  anira_rt_verdict,
+  anira_warmup_outcome,
   measureRenderGeometry,
+  type PlanReport,
 } from '@anira-project/anira'
 // The context's worker module (the ONNX Runtime Web engine with two threads per inference),
 // bundled by Vite into one self-contained ES module.
@@ -71,23 +74,41 @@ export async function loadRave() {
     const handler = InferenceHandler.create(context, pipeline)
     pipeline.destroy() // the handler copied it
 
-    // prepare compiles the plans under the contract and returns the report of them: one plan per
-    // model entry the build can run, with its engine (a JavaScript engine by its id, a built-in
-    // one by its anira_engine name) and its budget.
-    const report = handler.prepare(contract)
-    for (const plan of report.plans()) {
-      const engine =
-        plan.engineId ??
-        Object.entries(anira_engine).find(([, value]) => value === plan.engine)?.[0]
-      console.log(`plan: ${engine}, ${plan.budgetMs} ms budget`)
-    }
-    // The latency: how many samples later the output answers the input.
-    console.log(`latency: ${handler.getLatency()} samples`)
-
-    // The node streams once the inference Worker is in its loop, its engine's session created and
-    // warmed up, so the stream's first blocks do not wait for them.
+    // The contract's warm-up runs at prepare, on the inference thread, and measures the budget
+    // there: the Worker starts with the context, runs its engine's init (the session is created
+    // there) and enters its loop once this thread yields, so wait for it before the prepare.
     await context.ready()
     console.log(`inference threads: ${context.numInferenceThreads()}`)
+
+    // prepare compiles the plans under the contract, measures each plan's budget with the warm-up
+    // pass (an estimate at prepare, on this machine under its load of the moment) and returns
+    // the report of them: one plan per model entry the build can run, with its engine (a
+    // JavaScript engine by its id, a built-in one by its anira_engine name), its budget, how the
+    // pass found it and its real-time factor (the budget over the hop period, of the inferences
+    // that may run in parallel). The enums name the outcome and the verdict.
+    const logPlans = (report: PlanReport) => {
+      for (const plan of report.plans()) {
+        const engine =
+          plan.engineId ??
+          Object.entries(anira_engine).find(([, value]) => value === plan.engine)?.[0]
+        const outcome = Object.entries(anira_warmup_outcome).find(
+          ([, value]) => value === plan.warmupOutcome
+        )?.[0]
+        const verdict = Object.entries(anira_rt_verdict).find(
+          ([, value]) => value === plan.rtVerdict
+        )?.[0]
+        console.log(
+          `plan: ${engine}, budget ${plan.budgetMs.toFixed(3)} ms (measured ` +
+            `${plan.measuredMs.toFixed(3)} ms, median ${plan.medianMs.toFixed(3)} ms, ` +
+            `${plan.warmupIterations} warm-up inferences, ${outcome}), real-time factor ` +
+            `${plan.rtFactor.toFixed(2)} of ${plan.rtParallel} (load ` +
+            `${(plan.rtFactor / plan.rtParallel).toFixed(2)}): ${verdict}`
+        )
+      }
+    }
+    logPlans(handler.prepare(contract))
+    // The latency: how many samples later the output answers the input.
+    console.log(`latency: ${handler.getLatency()} samples`)
 
     // The audio node: a Web Audio input and output per Streamed slot of the model (mono in and
     // out).
@@ -103,8 +124,16 @@ export async function loadRave() {
       const g = await measureRenderGeometry(audioContext, { hold: [audioNode] })
       contract.hardHostBlocks(g.quantum, g.burst, audioContext.sampleRate)
       const again = audioNode.prepare(contract) // the report of the new prepare
+      logPlans(again)
+      // The plan the handler runs: its budget and verdict after the re-prepare.
+      const plan = again.plans()[handler.getPlan()]
+      const verdict = Object.entries(anira_rt_verdict).find(
+        ([, value]) => value === plan.rtVerdict
+      )?.[0]
       console.log(
-        `re-prepared: ${again.numPlans()} plan(s), latency ${handler.getLatency()} samples`
+        `re-prepared: ${again.numPlans()} plan(s), budget ${plan.budgetMs.toFixed(3)} ms, ` +
+          `real-time factor ${plan.rtFactor.toFixed(2)} of ${plan.rtParallel}: ${verdict}, ` +
+          `latency ${handler.getLatency()} samples`
       )
     }
 
@@ -122,6 +151,8 @@ export async function loadRave() {
     return {
       audioNode,
       getLatency: () => handler.getLatency(),
+      /** The plan report of the handler's last prepare. */
+      planReport: () => handler.planReport(),
       remeasure,
       teardown,
     }

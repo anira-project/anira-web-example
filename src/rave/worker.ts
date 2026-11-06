@@ -7,10 +7,10 @@
 // inference gets more than one core.
 //
 // The engine gets the model itself (`model`): it fetches rave.onnx and creates its session in its
-// init, then warms it up with three inferences over zeros (`warmup`), all before the Worker's
-// loop, so the stream starts warm. Over the config's model entry the session would come at the
-// first call, inside the stream, and that block would miss. anira warms up its built-in engines
-// only (a contract's "warmup"); a JavaScript engine warms itself.
+// init, before the Worker's loop. The contract's warm-up ("until_stable") then runs at prepare
+// through this engine on the Worker, until its times are stable, so the stream starts warm and
+// the budget is what this machine takes. Over the config's model entry the session would come at
+// the first call, inside the pass.
 import { defineEngine } from '@anira-project/anira/scope'
 import {
   ONNXRUNTIME_WEB_ENGINE_ID,
@@ -21,5 +21,5 @@ const site = new URL(import.meta.env.BASE_URL, self.location.origin)
 
 defineEngine(
   ONNXRUNTIME_WEB_ENGINE_ID,
-  onnxRuntimeWeb({ model: new URL('rave.onnx', site), numThreads: 2, warmup: 3 })
+  onnxRuntimeWeb({ model: new URL('rave.onnx', site), numThreads: 2 })
 )
