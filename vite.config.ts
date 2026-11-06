@@ -1,4 +1,4 @@
-import { defineConfig, searchForWorkspaceRoot } from 'vite'
+import { defineConfig } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import license from 'rollup-plugin-license'
 import { licenseConfig } from './licenses'
@@ -58,11 +58,6 @@ export default defineConfig({
     format: 'es',
     rolldownOptions: { output: { codeSplitting: false } },
   },
-  server: {
-    headers: CORS_HEADERS,
-    // Until anira 3.0.0-alpha.3 is on npm the package is a link to ../anira/web (package.json),
-    // whose real path lies outside this root: the dev server serves it only when allowed.
-    fs: { allow: [searchForWorkspaceRoot(process.cwd()), '../anira/web'] },
-  },
+  server: { headers: CORS_HEADERS },
   preview: { headers: CORS_HEADERS },
 })

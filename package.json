@@ -11,7 +11,7 @@
     "test": "node test/run.mjs"
   },
   "dependencies": {
-    "@anira-project/anira": "file:../anira/web",
+    "@anira-project/anira": "3.0.0-alpha.3",
     "coi-serviceworker": "^0.1.7",
     "highlight.js": "^11.11.1",
     "highlightjs-line-numbers.js": "^2.9.1",

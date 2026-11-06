@@ -1,21 +1,19 @@
 # Anira Web Demo — `v3` branch
 
-A small collection of in-browser demos for [anira](https://github.com/anira-project/anira) — a real-time neural network inference library for low-latency audio processing. This branch runs them on **anira 3** (`@anira-project/anira` 3.0.0-alpha.2 from npm, dist-tag `next`): the C++ library compiled to WebAssembly, whose inference threads are Wasm Workers and whose audio path is a Wasm Audio Worklet node with a C render callback, under a typed TypeScript layer over the C ABI. The model and contract files are the same JSON a native anira host loads (`public/*.model.json`, `public/*.contract.json`).
+A small collection of in-browser demos for [anira](https://github.com/anira-project/anira) — a real-time neural network inference library for low-latency audio processing. This branch runs them on **anira 3** (`@anira-project/anira` 3.0.0-alpha.3 from npm, dist-tag `next`): the C++ library compiled to WebAssembly, whose inference threads are Wasm Workers and whose audio path is a Wasm Audio Worklet node with a C render callback, under a typed TypeScript layer over the C ABI. The model and contract files are the same JSON a native anira host loads (`public/*.model.json`, `public/*.contract.json`).
 
 `main` stays on the 2.2.1 release from npm and keeps deploying to GitHub Pages; this branch has no deployment and no CI yet.
 
 ## Installing and running
 
-The dependency is pinned to the exact release, `"@anira-project/anira": "3.0.0-alpha.2"`, so the example does not move to the next alpha by itself. The 3.x alphas are published under npm's `next` dist-tag (`latest` is still 2.x). The package ships the WebAssembly module and the TypeScript layer prebuilt: no anira checkout and no emsdk.
+The dependency is pinned to the exact release, `"@anira-project/anira": "3.0.0-alpha.3"`, so the example does not move to the next alpha by itself. The 3.x alphas are published under npm's `next` dist-tag (`latest` is still 2.x). The package ships the WebAssembly module and the TypeScript layer prebuilt: no anira checkout and no emsdk.
 
 ```bash
-npm install            # @anira-project/anira 3.0.0-alpha.2 and the rest
+npm install            # @anira-project/anira 3.0.0-alpha.3 and the rest
 npm run dev            # or: npm run build && npm run preview
 ```
 
-In a project of your own: `npm install @anira-project/anira@next` (or `@anira-project/anira@3.0.0-alpha.2` for this release).
-
-**Until anira 3.0.0-alpha.3 is published**, this branch (`feat/measured-budgets`) runs on anira's next alpha, which measures the budgets at prepare: the dependency is the local package `"file:../anira/web"`. Check anira out beside this repository on its branch `feat/v3-hard-budget`, build its WebAssembly module (`cmake --preset wasm-abi && cmake --build --preset wasm-abi`, which writes `web/wasm/`) and its web package (`npm ci && npm run build` in `../anira/web`), then `npm install` here. The dev server serves the linked package through `server.fs.allow` (`vite.config.ts`). Once the alpha is on npm, the dependency goes back to the exact release.
+In a project of your own: `npm install @anira-project/anira@next` (or `@anira-project/anira@3.0.0-alpha.3` for this release).
 
 The RAVE demo's model (126 MB, too large for git) is fetched into `public/rave.onnx` (gitignored) when the dev server or a build starts: `fetch-models.ts`, a Vite plugin, downloads `model_forward.onnx` from the [realtime inference workshop](https://github.com/anira-project/realtime-inference-workshop)'s release `workshop-model` and checks its SHA-256, once (`node fetch-models.ts` runs it alone; `RAVE_MODEL=/path/to/model_forward.onnx` copies a local file instead of downloading).
 
