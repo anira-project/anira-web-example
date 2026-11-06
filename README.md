@@ -15,6 +15,8 @@ npm run dev            # or: npm run build && npm run preview
 
 In a project of your own: `npm install @anira-project/anira@next` (or `@anira-project/anira@3.0.0-alpha.2` for this release).
 
+**Until anira 3.0.0-alpha.3 is published**, this branch (`feat/measured-budgets`) runs on anira's next alpha, which measures the budgets at prepare: the dependency is the local package `"file:../anira/web"`. Check anira out beside this repository on its branch `feat/v3-hard-budget`, build its WebAssembly module (`cmake --preset wasm-abi && cmake --build --preset wasm-abi`, which writes `web/wasm/`) and its web package (`npm ci && npm run build` in `../anira/web`), then `npm install` here. The dev server serves the linked package through `server.fs.allow` (`vite.config.ts`). Once the alpha is on npm, the dependency goes back to the exact release.
+
 The RAVE demo's model (126 MB, too large for git) is fetched into `public/rave.onnx` (gitignored) when the dev server or a build starts: `fetch-models.ts`, a Vite plugin, downloads `model_forward.onnx` from the [realtime inference workshop](https://github.com/anira-project/realtime-inference-workshop)'s release `workshop-model` and checks its SHA-256, once (`node fetch-models.ts` runs it alone; `RAVE_MODEL=/path/to/model_forward.onnx` copies a local file instead of downloading).
 
 The dev server and `vite preview` send `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, which the module's shared `WebAssembly.Memory` needs (`crossOriginIsolated`); on GitHub Pages [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker) stands in for the headers. The full anira build documentation is [Installation / Building](https://anira-project.github.io/anira/web-api/installation_building.html).
