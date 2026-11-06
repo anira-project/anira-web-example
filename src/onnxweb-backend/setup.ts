@@ -92,11 +92,11 @@ export async function loadOnnxRuntimeWebBackend() {
           ([, value]) => value === plan.rtVerdict
         )?.[0]
         console.log(
-          `plan: ${engine}, budget ${plan.budgetMs.toFixed(3)} ms (measured ` +
-            `${plan.measuredMs.toFixed(3)} ms, median ${plan.medianMs.toFixed(3)} ms, ` +
+          `plan: ${engine}, budget ${plan.budgetMs.toPrecision(3)} ms (measured ` +
+            `${plan.measuredMs.toPrecision(3)} ms, median ${plan.medianMs.toPrecision(3)} ms, ` +
             `${plan.warmupIterations} warm-up inferences, ${outcome}), real-time factor ` +
-            `${plan.rtFactor.toFixed(2)} of ${plan.rtParallel} (load ` +
-            `${(plan.rtFactor / plan.rtParallel).toFixed(2)}): ${verdict}`
+            `${plan.rtFactor.toPrecision(3)} of ${plan.rtParallel} (load ` +
+            `${(plan.rtFactor / plan.rtParallel).toPrecision(3)}): ${verdict}`
         )
       }
     }
@@ -156,8 +156,8 @@ export async function loadOnnxRuntimeWebBackend() {
       const acceptedBefore =
         live && !held && plan.rtVerdict === anira_rt_verdict.ANIRA_RT_NOT_REALTIME
       console.log(
-        `re-prepared: ${again.numPlans()} plan(s), budget ${plan.budgetMs.toFixed(3)} ms, ` +
-          `real-time factor ${plan.rtFactor.toFixed(2)} of ${plan.rtParallel}: ${verdict}, ` +
+        `re-prepared: ${again.numPlans()} plan(s), budget ${plan.budgetMs.toPrecision(3)} ms, ` +
+          `real-time factor ${plan.rtFactor.toPrecision(3)} of ${plan.rtParallel}: ${verdict}, ` +
           `latency ${handler.getLatency()} samples${acceptedBefore ? ' (accepted before)' : ''}`
       )
     }
