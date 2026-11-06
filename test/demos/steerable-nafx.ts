@@ -6,7 +6,7 @@
 // 2.x JavaScript windowing did.
 import * as ort from 'onnxruntime-web/wasm'
 import { loadSteerableNafx } from '../../src/steerable-nafx/setup'
-import { energy, renderOffline, sine, type Checks } from '../common'
+import { checkPlans, energy, renderOffline, sine, type Checks } from '../common'
 
 const RATE = 44100
 const QUANTUM = 128
@@ -41,6 +41,13 @@ export const run = async (): Promise<Checks> => {
   const loaded = await loadSteerableNafx()
   const chain = await loaded.start(audio, { waitMs: 500 })
   const demo = { ...loaded, ...chain, latency: chain.getLatency() }
+  // What the prepare measured (the rules, never a value), and an offline render is never held,
+  // whatever the verdict: it does not run against the clock.
+  checks.push(...checkPlans(chain.planReport()))
+  check(
+    !chain.waitsForConsent(),
+    `the offline render is not held (verdict ${chain.plan().rtVerdict})`
+  )
   // The context's default pool: an offline render waits for its inferences, so its Workers
   // must be in their loops first.
   await demo.context.ready()

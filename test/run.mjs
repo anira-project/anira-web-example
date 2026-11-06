@@ -4,9 +4,13 @@
 // - every check page, test/check.html?check=<name>: an OfflineAudioContext rendered through a
 //   demo's anira chain (the same function the demo page calls), its numbers checked; the verdict
 //   is window.anira_test_result;
+// - the slow page, test/slow.html: a deliberately slow JavaScript engine through the real API,
+//   the verdict at 48 and 96 kHz, the node held and released, an offline render never held;
 // - every demo page: it must reach "ready" (the loading overlay removed, the context's default
 //   pool in its loops; on JS Callback's page + / − Worker count up and down) and play for a
-//   moment after a click on Play, with no console error, no page error and no refused load.
+//   moment after a click on Play, with no console error, no page error and no refused load. Each
+//   prepare prints a line per plan with what it measured; a page whose plan is not real-time on
+//   this machine shows "Try nonetheless", which the harness clicks (so a slower machine passes).
 // Then the same pages once more under Vite's dev server, which serves the package from
 // node_modules as it is (not pre-bundled). Live audio is not observable headless: the demo pages
 // are smoke-run only, by ear is for a person.
@@ -39,6 +43,8 @@ const CHECKS = [
   'rave',
 ]
 const PAGES = ['index.html', 'licenses.html']
+// The slow path's page: a check page of its own (window.anira_test_result).
+const SLOW = 'slow'
 // The demo pages: they build an anira chain on load and have a Play button.
 const DEMOS = [
   'simple-gain-stereo.html',
@@ -112,7 +118,12 @@ if (modes.includes('build')) {
     build: {
       outDir,
       emptyOutDir: true,
-      rollupOptions: { input: { check: path.join(root, 'test/check.html') } },
+      rollupOptions: {
+        input: {
+          check: path.join(root, 'test/check.html'),
+          slow: path.join(root, 'test/slow.html'),
+        },
+      },
     },
   })
   // The license plugin writes to dist/ whatever the outDir (licenses.ts).
@@ -165,8 +176,13 @@ const open = async (browser, url, initScript) => {
   return { page, errors, logs, failure }
 }
 
-const runCheck = async (browser, base, name) => {
-  const { page, errors } = await open(browser, `${base}test/check.html?check=${name}`)
+const runCheck = async (
+  browser,
+  base,
+  name,
+  url = `${base}test/check.html?check=${name}`
+) => {
+  const { page, errors } = await open(browser, url)
   try {
     await page.waitForFunction(() => window.anira_test_result, null, { timeout: 120000 })
     const result = await page.evaluate(() => window.anira_test_result)
@@ -239,6 +255,34 @@ const checkLatency = async (page, when) => {
     )
 }
 
+// Each prepare prints one line per plan with what the warm-up pass measured; after a re-prepare
+// the model's figure is reused (no pass).
+const planLine =
+  /^plan: .+, budget [\d.]+ ms \(measured [\d.]+ ms, median [\d.]+ ms, \d+ warm-up inferences, ANIRA_WARMUP_OUTCOME_\w+\), real-time factor [\d.]+ of \d+ \(load [\d.]+\): ANIRA_RT_\w+$/
+const checkPlanLines = (lines, when, { reused = false } = {}) => {
+  const plans = lines.filter((text) => planLine.test(text))
+  const outcomes = reused ? ['REUSED'] : ['STABLE', 'CAPPED']
+  if (
+    plans.length >= 1 &&
+    plans.every((text) =>
+      outcomes.some((o) => text.includes(`ANIRA_WARMUP_OUTCOME_${o}`))
+    )
+  )
+    console.log(`ok: ${when}, ${plans.length} plan line(s): ${plans[0]}`)
+  else fail(`${when}: the plan lines are ${JSON.stringify(plans)} (outcome ${outcomes})`)
+}
+
+// A plan that is not real-time on this machine holds the node: the page shows the verdict and
+// "Try nonetheless"; the harness logs the verdict and clicks it, as a person would.
+const tryNonetheless = async (page, when) => {
+  if (!(await page.isVisible('#try-nonetheless'))) return
+  console.log(
+    `${when}: ${await page.textContent('#verdict')} (clicking "Try nonetheless")`
+  )
+  await page.click('#try-nonetheless')
+  await page.waitForTimeout(1000)
+}
+
 // A page on the context's default pool logs its size once the pool is in its loops.
 const checkDefaultPool = (logs) => {
   const logged = logs.map((text) => /^inference threads: (\d+)$/.exec(text)).find(Boolean)
@@ -308,6 +352,8 @@ const runPage = async (browser, base, pathname, demo) => {
       const label = await page.textContent('#audio-toggle')
       if (label === 'Pause') {
         console.log('ok: the demo plays after a click on Play')
+        checkPlanLines(logs, 'after the prepare')
+        await tryNonetheless(page, 'after the prepare')
         const rms = await playedRms(page)
         if (rms > 1e-3)
           console.log(`ok: the page's output is not silent (RMS ${rms.toFixed(4)})`)
@@ -331,6 +377,10 @@ const runPage = async (browser, base, pathname, demo) => {
         const remeasured = logs.slice(before).some((text) => /^re-prepared: /.test(text))
         if (remeasured) console.log('ok: sinkchange re-measured and re-prepared the node')
         else fail('sinkchange did not re-prepare the node')
+        checkPlanLines(logs.slice(before), 'after the sinkchange re-prepare', {
+          reused: true,
+        })
+        await tryNonetheless(page, 'after the sinkchange re-prepare')
         await checkLatency(page, 'after the sinkchange re-prepare')
         const after = await playedRms(page)
         if (after > 1e-3)
@@ -382,6 +432,10 @@ for (const name of browsers) {
         for (const check of CHECKS.filter(selected)) {
           console.log(`-- ${name} ${mode}: check ${check}`)
           await runCheck(browser, server.url, check)
+        }
+        if (selected(SLOW)) {
+          console.log(`-- ${name} ${mode}: the slow path`)
+          await runCheck(browser, server.url, SLOW, `${server.url}test/slow.html`)
         }
         for (const pathname of [...PAGES, ...DEMOS].filter(selected)) {
           console.log(`-- ${name} ${mode}: ${pathname}`)

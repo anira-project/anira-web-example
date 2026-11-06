@@ -19,6 +19,45 @@ export type StartedDemo = {
   tryNonetheless: () => void
 }
 
+/** What the verdict shows of a started chain: the plan it runs and whether its node is held. */
+export type DemoVerdict = Pick<StartedDemo, 'plan' | 'waitsForConsent'>
+
+/**
+ * Show the verdict of the plan `demo` runs in `note`, and `button` ("Try nonetheless") while its
+ * node is held: not real-time, the message and (while held) the button; marginal, the note alone;
+ * comfortable or unmeasured, nothing. Returns the note's text (empty when hidden).
+ */
+export const renderVerdict = (
+  demo: DemoVerdict,
+  note: HTMLElement,
+  button: HTMLElement
+): string => {
+  const plan = demo.plan()
+  // The real-time factor is the plan's inference time over the hop period: the time and the
+  // period it is measured against, and the load of the inferences that run in parallel.
+  const time = plan.measuredMs > 0 ? plan.measuredMs : plan.budgetMs
+  const hop = plan.rtFactor > 0 ? time / plan.rtFactor : 0
+  const load = plan.rtFactor / plan.rtParallel
+  const figures =
+    `${load.toFixed(2)}× real time (${time.toFixed(1)} ms per ${hop.toFixed(1)} ms block` +
+    `${plan.rtParallel > 1 ? `, ${plan.rtParallel} in parallel` : ''})`
+  if (plan.rtVerdict === anira_rt_verdict.ANIRA_RT_NOT_REALTIME) {
+    note.textContent = demo.waitsForConsent()
+      ? `This machine runs the model at ${figures}: playback will drop out. The model's ` +
+        'output stays silent until you click "Try nonetheless".'
+      : `This machine runs the model at ${figures}: playback drops out, the missed blocks ` +
+        "filled by the contract's miss policy."
+  } else if (plan.rtVerdict === anira_rt_verdict.ANIRA_RT_MARGINAL) {
+    note.textContent = `This machine runs the model at ${figures}: it may drop out under load.`
+  } else {
+    note.textContent = ''
+  }
+  note.hidden = note.textContent === ''
+  button.hidden = !demo.waitsForConsent()
+  if (!note.hidden) console.log(`verdict: ${note.textContent}`)
+  return note.textContent
+}
+
 export type DemoUIOptions = {
   audio: HTMLAudioElement
   audioContext: AudioContext
@@ -72,31 +111,7 @@ export const setupDemoUI = ({ audio, audioContext, start, threads }: DemoUIOptio
   audioToggleButton.parentElement?.after(verdictNote)
   verdictNote.after(tryButton)
 
-  const showVerdict = (demo: StartedDemo) => {
-    const plan = demo.plan()
-    // The real-time factor is the plan's inference time over the hop period: the time and the
-    // period it is measured against, and the load of the inferences that run in parallel.
-    const time = plan.measuredMs > 0 ? plan.measuredMs : plan.budgetMs
-    const hop = plan.rtFactor > 0 ? time / plan.rtFactor : 0
-    const load = plan.rtFactor / plan.rtParallel
-    const figures =
-      `${load.toFixed(2)}× real time (${time.toFixed(1)} ms per ${hop.toFixed(1)} ms block` +
-      `${plan.rtParallel > 1 ? `, ${plan.rtParallel} in parallel` : ''})`
-    if (plan.rtVerdict === anira_rt_verdict.ANIRA_RT_NOT_REALTIME) {
-      verdictNote.textContent = demo.waitsForConsent()
-        ? `This machine runs the model at ${figures}: playback will drop out. The model's ` +
-          'output stays silent until you click "Try nonetheless".'
-        : `This machine runs the model at ${figures}: playback drops out, the missed blocks ` +
-          "filled by the contract's miss policy."
-    } else if (plan.rtVerdict === anira_rt_verdict.ANIRA_RT_MARGINAL) {
-      verdictNote.textContent = `This machine runs the model at ${figures}: it may drop out under load.`
-    } else {
-      verdictNote.textContent = ''
-    }
-    verdictNote.hidden = verdictNote.textContent === ''
-    tryButton.hidden = !demo.waitsForConsent()
-    if (!verdictNote.hidden) console.log(`verdict: ${verdictNote.textContent}`)
-  }
+  const showVerdict = (demo: StartedDemo) => renderVerdict(demo, verdictNote, tryButton)
 
   let started: StartedDemo | null = null
   tryButton.onclick = () => {
