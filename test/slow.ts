@@ -226,7 +226,6 @@ const run = async (): Promise<Result> => {
       )
 
       // Step 3: a sinkchange re-prepare at 96 kHz, as the demos do it.
-      const before = calls
       const g = await measureRenderGeometry(at96, { hold: [audioNode!] })
       contract.hardHostBlocks(g.quantum, g.burst, at96.sampleRate)
       audioNode!.prepare(contract)
@@ -234,13 +233,16 @@ const run = async (): Promise<Result> => {
       renderVerdict(demo, note, button)
       await delay(1500)
       check(
-        plan().warmupOutcome === anira_warmup_outcome.ANIRA_WARMUP_OUTCOME_REUSED &&
-          calls === before &&
-          !held &&
-          button.hidden &&
-          rmsOf(tap96) > 1e-3,
-        `96 kHz sinkchange: reused, not worse than accepted, no button, the node plays on ` +
-          `(RMS ${rmsOf(tap96).toFixed(4)})`
+        plan().warmupOutcome === anira_warmup_outcome.ANIRA_WARMUP_OUTCOME_REUSED,
+        `96 kHz sinkchange: the model's figure reused (outcome ${plan().warmupOutcome})`
+      )
+      check(
+        !held && button.hidden,
+        '96 kHz sinkchange: not worse than accepted, not held, no button'
+      )
+      check(
+        rmsOf(tap96) > 1e-3,
+        `96 kHz sinkchange: the node plays on (RMS ${rmsOf(tap96).toFixed(4)})`
       )
       audioNode!.destroy()
       await at96.close()

@@ -427,6 +427,10 @@ body {
   margin-top: 8px;
 }
 
+.btn[hidden] {
+  display: none;
+}
+
 /* ── Slider / Range ──────────────────────────────────── */
 
 .slider-group {

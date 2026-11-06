@@ -62,13 +62,15 @@ export const run = async (): Promise<Checks> => {
     budgetMs: 2,
   })
   const handler = InferenceHandler.create(context, pipeline)
+  // The contract's warm-up (anira's default, until stable, beside the explicit budget) runs at
+  // prepare on the Worker: it must be in its loop first.
+  await context.ready()
   for (const plan of handler.prepare(contract).plans()) {
     console.log(`plan: ${plan.engineId ?? plan.engine}, ${plan.budgetMs} ms budget`)
   }
   pipeline.destroy()
   contract.destroy()
   const latency = handler.getLatency()
-  await context.ready()
   check(true, `the worker module's Wasm Worker is in its loop (latency ${latency})`)
 
   const audio = new OfflineAudioContext(1, QUANTUM * QUANTA, RATE)
