@@ -20,6 +20,9 @@ const demo = await loadRave()
 const { removeLoadingIndicator } = setupDemoUI({
   audio,
   audioContext,
+  // The first Play waits for the Worker's engine, which downloads the 126 MB model on a first
+  // visit (setup.ts).
+  startingLabel: 'Downloading the model (126 MB)…',
   // The first Play, on the running context: the chain and the graph.
   start: async () => {
     const chain = await demo.start(audioContext)

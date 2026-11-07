@@ -12,6 +12,28 @@ const CORS_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',
 }
 
+// coi-serviceworker answers every request of the pages in its scope with a copy of the response
+// that adds those headers, the body streamed through the service worker. Firefox ends a service
+// worker after about 30 s, which cuts off every response it is still streaming then: the RAVE
+// model's 126 MB on a slower connection (the download aborts, the Worker starts without its
+// engine). Only a navigation and a worker's script need the headers; a same-origin subresource is
+// allowed under require-corp without them. So the copy published here leaves every other
+// same-origin request to the browser, and the build fails if the handler no longer reads as this
+// expects.
+const COI_FETCH_START =
+  'const r=e.request;if("only-if-cached"===r.cache&&"same-origin"!==r.mode)return;'
+const COI_PASS_THROUGH =
+  'if(!["document","iframe","worker","sharedworker"].includes(r.destination)' +
+  '&&new URL(r.url).origin===self.location.origin)return;'
+const coiPassThrough = (contents: string) => {
+  if (!contents.includes(COI_FETCH_START)) {
+    throw new Error(
+      "coi-serviceworker's fetch handler changed; update its pass-through in vite.config.ts"
+    )
+  }
+  return contents.replace(COI_FETCH_START, COI_FETCH_START + COI_PASS_THROUGH)
+}
+
 export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
   plugins: [
@@ -20,9 +42,10 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          // Really just for setting CORS cross origin isolation headers on github pages
+          // Cross-origin isolation on GitHub Pages, which cannot send headers (coiPassThrough).
           src: 'node_modules/coi-serviceworker/coi-serviceworker.min.js',
           dest: '.',
+          transform: coiPassThrough,
         },
       ],
     }),
